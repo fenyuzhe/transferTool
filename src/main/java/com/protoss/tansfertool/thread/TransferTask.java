@@ -194,8 +194,13 @@ public class TransferTask extends Task<Integer> {
         }
 
         private void handleCompression(File f1, File desFile) {
-            if (!desFile.getParentFile().exists()) {
-                desFile.getParentFile().mkdirs();
+            File parentDir = desFile.getParentFile();
+            if (!parentDir.exists()) {
+                if (!parentDir.mkdirs()) {
+                    log.error("Failed to create directory: " + parentDir.getAbsolutePath());
+                    copyFile(f1, desFile); // 创建目录失败时直接复制
+                    return;
+                }
             }
             try {
                 if (compressMode.equals("imageio")) {
