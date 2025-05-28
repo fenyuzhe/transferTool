@@ -1,0 +1,150 @@
+/* 通用样式 */
+.root {
+    -fx-font-family: "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+    -fx-background-color: #f4f4f9;
+}
+
+.label {
+    -fx-text-fill: #333;
+}
+
+.button {
+    -fx-background-color: #0078d7;
+    -fx-text-fill: #fff;
+    -fx-background-radius: 5px;
+    -fx-padding: 5px 12px; /* 减小按钮内边距 */
+    -fx-font-weight: bold;
+}
+
+.button:hover {
+    -fx-background-color: #005a9e;
+}
+
+.button:pressed {
+    -fx-background-color: #003f73;
+}
+
+.text-field {
+    -fx-background-color: #fff;
+    -fx-border-color: #d1d1d1;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 5px; /* 减小输入框内边距 */
+    -fx-text-fill: #333;
+}
+
+.text-field:focused {
+    -fx-border-color: #0078d7;
+    -fx-background-color: #fefefe;
+}
+
+.combo-box {
+    -fx-background-color: #fff;
+    -fx-border-color: #d1d1d1;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-padding: 4px; /* 减小下拉框内边距 */
+}
+
+.combo-box:hover {
+    -fx-border-color: #0078d7;
+}
+
+/* Tab Pane 样式 */
+.tab-pane {
+    -fx-background-color: #eaeaf0;
+    -fx-tab-min-width: 100px;
+    -fx-tab-min-height: 36px; /* 减小Tab高度 */
+    -fx-tab-max-width: 200px;
+    -fx-tab-max-height: 40px;
+}
+
+.tab-pane .tab {
+    -fx-background-color: #d1d1d1;
+    -fx-padding: 8px; /* 减小Tab内边距 */
+    -fx-text-fill: #333;
+    -fx-font-size: 14px;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: #bcbcbc;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #0078d7;
+    -fx-text-fill: #fff;
+    -fx-font-weight: bold;
+    -fx-border-color: #0078d7;
+}
+
+.tab-pane .content-pane {
+    -fx-background-color: linear-gradient(to bottom, #e6f7ff, #ffffff);
+    -fx-padding: 10; /* 减小内容内边距 */
+    -fx-border-color: #b3d8ff;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+}
+
+/* 主容器样式 */
+.main-container {
+    -fx-background-color: linear-gradient(to bottom, #d4fc79, #96e6a1); /* 浅紫到淡紫渐变 */
+    -fx-padding: 15; /* 减小内边距 */
+    -fx-border-color: #96e6a1;
+    -fx-border-width: 2px;
+    -fx-border-radius: 15px;
+    -fx-background-radius: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0.5, 0, 2);
+    -fx-spacing: 15; /* 减小子项间距 */
+}
+
+/* 输入组样式 */
+.input-group {
+    -fx-spacing: 8; /* 减小子项间距 */
+    -fx-padding: 5 0; /* 减小上下内边距 */
+    -fx-alignment: center-left;
+}
+
+/* 设置组样式 */
+.settings-group {
+    -fx-background-color: linear-gradient(to right, #96e6a1, #d4fc79);
+    -fx-padding: 10; /* 减小内边距 */
+    -fx-border-color: #96e6a1;
+    -fx-border-width: 2px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-spacing: 8; /* 减小子项间距 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 8, 0.5, 0, 2);
+}
+
+/* 文件统计信息样式 */
+.stats-group {
+    -fx-background-color: linear-gradient(to right, #d4fc79, #96e6a1);
+    -fx-padding: 10; /* 减小内边距 */
+    -fx-border-color: #96e6a1;
+    -fx-border-width: 2px;
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-spacing: 15; /* 减小子项间距 */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 8, 0.5, 0, 2);
+    -fx-alignment: center;
+}
+
+.stat-item {
+    -fx-spacing: 5;
+    -fx-alignment: center-left;
+}
+
+/* 操作按钮组 */
+.button-group {
+    -fx-background-color: transparent;
+    -fx-spacing: 12; /* 减小按钮间距 */
+    -fx-padding: 8; /* 减小组内边距 */
+    -fx-alignment: center;
+    -fx-border-color: rgba(150, 230, 161, 0.5);
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}

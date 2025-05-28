@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<TabPane prefHeight="680.0" prefWidth="800.0"
+         styleClass="modern-tab-pane"
+         xmlns="http://javafx.com/javafx/19"
+         xmlns:fx="http://javafx.com/fxml/1"
+         fx:controller="com.protoss.tansfertool.controller.TransferToolController">
+
+   <!-- 定义ToggleGroups -->
+   <fx:define>
+      <ToggleGroup fx:id="filterGroup"/>
+      <ToggleGroup fx:id="compressionGroup"/>
+   </fx:define>
+
+   <tabs>
+      <Tab closable="false" text="手动转移">
+         <content>
+            <BorderPane fx:id="rootPane" styleClass="content-pane">
+               <center>
+                  <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
+                     <VBox spacing="20" styleClass="main-container">
+                        <!-- 源路径选择 -->
+                        <HBox fx:id="hbox_1" styleClass="input-group">
+                           <Label text="源路径" styleClass="input-label"/>
+                           <TextField fx:id="txt_sourceDir"
+                                      editable="false"
+                                      promptText="请选择源文件夹"
+                                      styleClass="modern-text-field"
+                                      HBox.hgrow="ALWAYS"/>
+                           <Button fx:id="btn_sourceDir"
+                                   onAction="#handlerButtonAction"
+                                   styleClass="modern-button,primary-button"
+                                   text="选择">
+                              <graphic>
+                                 <FontIcon iconLiteral="far-folder-open" />
+                              </graphic>
+                           </Button>
+                        </HBox>
+
+                        <!-- 目标路径选择 -->
+                        <HBox fx:id="hbox_2" styleClass="input-group">
+                           <Label text="目标路径" styleClass="input-label"/>
+                           <TextField fx:id="txt_desDir"
+                                      editable="false"
+                                      promptText="请选择目标文件夹"
+                                      styleClass="modern-text-field"
+                                      HBox.hgrow="ALWAYS"/>
+                           <Button fx:id="btn_desDir"
+                                   onAction="#handlerButtonAction"
+                                   styleClass="modern-button,primary-button"
+                                   text="选择">
+                              <graphic>
+                                 <FontIcon iconLiteral="far-folder-open" />
+                              </graphic>
+                           </Button>
+                        </HBox>
+
+                        <!-- 转移策略和线程设置 -->
+                        <HBox fx:id="hbox_3" styleClass="input-group">
+                           <Label text="转移策略" styleClass="input-label"/>
+                           <ComboBox fx:id="box_strategy"
+                                     prefWidth="150.0"
+                                     styleClass="modern-combo-box"/>
+                           <Region HBox.hgrow="ALWAYS"/>
+                           <Label text="线程数" styleClass="input-label"/>
+                           <TextField fx:id="txt_threads"
+                                      prefWidth="100.0"
+                                      text="8"
+                                      styleClass="modern-text-field,numeric-field"/>
+                        </HBox>
+
+                        <!-- 压缩设置 -->
+                        <VBox fx:id="hbox_4" styleClass="settings-group" disable="true">
+                           <HBox styleClass="input-group">
+                              <CheckBox fx:id="cb_compressed"
+                                        text="启用无损压缩 JPEG2000"
+                                        styleClass="modern-checkbox"/>
+                              <Region HBox.hgrow="ALWAYS"/>
+                              <Label text="压缩大小过滤" styleClass="input-label"/>
+                              <TextField fx:id="txt_filtersize"
+                                         disable="true"
+                                         prefWidth="100.0"
+                                         styleClass="modern-text-field,numeric-field"/>
+                              <Label text="KB" styleClass="unit-label"/>
+                           </HBox>
+
+                           <!-- 压缩方式选择 -->
+                           <HBox fx:id="hbox_7" styleClass="input-group" disable="true">
+                              <Label text="压缩方式" styleClass="input-label"/>
+                              <RadioButton fx:id="radio_imageio"
+                                           text="IMAGEIO"
+                                           styleClass="modern-radio-button"
+                                           toggleGroup="$compressionGroup"/>
+                              <RadioButton fx:id="radio_opencv"
+                                           text="OPENCV"
+                                           styleClass="modern-radio-button"
+                                           toggleGroup="$compressionGroup"/>
+                           </HBox>
+                        </VBox>
+
+                        <!-- 文件筛选设置 -->
+                        <VBox fx:id="hbox_5" styleClass="settings-group" disable="true">
+                           <HBox styleClass="input-group">
+                              <RadioButton fx:id="radio_timefilter"
+                                           text="时间范围"
+                                           selected="true"
+                                           styleClass="modern-radio-button"
+                                           toggleGroup="$filterGroup"/>
+                              <RadioButton fx:id="radio_all"
+                                           text="全部"
+                                           styleClass="modern-radio-button"
+                                           toggleGroup="$filterGroup"/>
+                           </HBox>
+                           <HBox styleClass="date-picker-group">
+                              <DatePicker fx:id="dp_start"
+                                          promptText="开始日期"
+                                          styleClass="modern-date-picker"/>
+                              <Label text="-" styleClass="separator-label"/>
+                              <DatePicker fx:id="dp_end"
+                                          promptText="结束日期"
+                                          styleClass="modern-date-picker"/>
+                           </HBox>
+                        </VBox>
+
+                        <!-- 文件统计信息 -->
+                        <HBox styleClass="stats-group">
+                           <VBox styleClass="stat-item" HBox.hgrow="ALWAYS">
+                              <Label text="文件数量" styleClass="stat-label"/>
+                              <Label fx:id="lb_filescount" styleClass="stat-value"/>
+                           </VBox>
+                           <VBox styleClass="stat-item" HBox.hgrow="ALWAYS">
+                              <Label text="文件大小" styleClass="stat-label"/>
+                              <Label fx:id="lb_fileslength" styleClass="stat-value"/>
+                           </VBox>
+                        </HBox>
+
+                        <!-- 操作按钮 -->
+                        <HBox fx:id="hbox_6" styleClass="button-group" disable="true">
+                           <Button fx:id="btn_start"
+                                   text="启动"
+                                   defaultButton="true"
+                                   styleClass="modern-button,success-button">
+                              <graphic>
+                                 <FontIcon iconLiteral="fas-play" />
+                              </graphic>
+                           </Button>
+                           <Button fx:id="btn_pause"
+                                   text="暂停"
+                                   styleClass="modern-button,warning-button">
+                              <graphic>
+                                 <FontIcon iconLiteral="fas-pause" />
+                              </graphic>
+                           </Button>
+                           <Button fx:id="btn_resume"
+                                   text="恢复"
+                                   styleClass="modern-button,info-button">
+                              <graphic>
+                                 <FontIcon iconLiteral="fas-play" />
+                              </graphic>
+                           </Button>
+                        </HBox>
+                     </VBox>
+                  </ScrollPane>
+               </center>
+               <bottom>
+                  <StackPane styleClass="progress-container">
+                     <ProgressBar fx:id="progressBar" styleClass="modern-progress-bar"/>
+                     <Label fx:id="lb_percent" styleClass="progress-label"/>
+                  </StackPane>
+               </bottom>
+            </BorderPane>
+         </content>
+      </Tab>
+      <Tab closable="false" text="定时转移">
+         <content>
+            <BorderPane fx:id="rootPane1" styleClass="content-pane">
+               <center>
+                  <VBox styleClass="main-container">
+                     <!-- 定时转移的内容将在这里添加 -->
+                     <Label text="定时转移功能开发中..." styleClass="placeholder-text"/>
+                  </VBox>
+               </center>
+            </BorderPane>
+         </content>
+      </Tab>
+   </tabs>
+</TabPane>
