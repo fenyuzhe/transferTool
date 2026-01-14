@@ -1,150 +1,235 @@
-/* 通用样式 */
+/* 全局设置 */
 .root {
-    -fx-font-family: "Segoe UI", sans-serif;
-    -fx-font-size: 14px;
-    -fx-background-color: #f4f4f9;
+    -fx-font-family: "SimSun", "Microsoft YaHei", "Segoe UI", "PingFang SC", "WenQuanYi Micro Hei", "System", sans-serif;
+    -fx-font-size: 13px; /* Reduced font size slightly */
+    -fx-background-color: #f3f4f6;
 }
 
-.label {
-    -fx-text-fill: #333;
+/* TabPane 样式 */
+.modern-tab-pane {
+    -fx-tab-min-height: 36px; /* Compact tabs */
+    -fx-tab-max-height: 36px;
+    -fx-padding: 0;
 }
 
-.button {
-    -fx-background-color: #0078d7;
-    -fx-text-fill: #fff;
-    -fx-background-radius: 5px;
-    -fx-padding: 5px 12px; /* 减小按钮内边距 */
-    -fx-font-weight: bold;
+.modern-tab-pane .tab-header-area {
+    -fx-background-color: #ffffff;
+    -fx-padding: 0 10 0 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 1);
 }
 
-.button:hover {
-    -fx-background-color: #005a9e;
-}
-
-.button:pressed {
-    -fx-background-color: #003f73;
-}
-
-.text-field {
-    -fx-background-color: #fff;
-    -fx-border-color: #d1d1d1;
-    -fx-border-radius: 5px;
-    -fx-background-radius: 5px;
-    -fx-padding: 5px; /* 减小输入框内边距 */
-    -fx-text-fill: #333;
-}
-
-.text-field:focused {
-    -fx-border-color: #0078d7;
-    -fx-background-color: #fefefe;
-}
-
-.combo-box {
-    -fx-background-color: #fff;
-    -fx-border-color: #d1d1d1;
-    -fx-border-radius: 5px;
-    -fx-background-radius: 5px;
-    -fx-padding: 4px; /* 减小下拉框内边距 */
-}
-
-.combo-box:hover {
-    -fx-border-color: #0078d7;
-}
-
-/* Tab Pane 样式 */
-.tab-pane {
-    -fx-background-color: #eaeaf0;
-    -fx-tab-min-width: 100px;
-    -fx-tab-min-height: 36px; /* 减小Tab高度 */
-    -fx-tab-max-width: 200px;
-    -fx-tab-max-height: 40px;
-}
-
-.tab-pane .tab {
-    -fx-background-color: #d1d1d1;
-    -fx-padding: 8px; /* 减小Tab内边距 */
-    -fx-text-fill: #333;
-    -fx-font-size: 14px;
+.modern-tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-padding: 0 16; /* Reduced padding */
     -fx-border-color: transparent;
-    -fx-border-width: 0;
+    -fx-border-width: 0 0 2 0;
 }
 
-.tab-pane .tab:hover {
-    -fx-background-color: #bcbcbc;
+.modern-tab-pane .tab:selected {
+    -fx-border-color: #4f46e5;
 }
 
-.tab-pane .tab:selected {
-    -fx-background-color: #0078d7;
-    -fx-text-fill: #fff;
+.modern-tab-pane .tab-label {
+    -fx-text-fill: #6b7280;
+    -fx-font-weight: normal;
+}
+
+.modern-tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #4f46e5;
     -fx-font-weight: bold;
-    -fx-border-color: #0078d7;
 }
 
-.tab-pane .content-pane {
-    -fx-background-color: linear-gradient(to bottom, #e6f7ff, #ffffff);
-    -fx-padding: 10; /* 减小内容内边距 */
-    -fx-border-color: #b3d8ff;
-    -fx-border-width: 1px;
-    -fx-border-radius: 8px;
+.content-pane {
+    -fx-padding: 16; /* Compact padding */
+    -fx-background-color: transparent;
 }
 
-/* 主容器样式 */
+/* 主容器 */
+.edge-to-edge {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+
+.edge-to-edge .viewport {
+    -fx-background-color: transparent;
+    -fx-padding: 0 8 0 0; 
+}
+
 .main-container {
-    -fx-background-color: linear-gradient(to bottom, #d4fc79, #96e6a1); /* 浅紫到淡紫渐变 */
-    -fx-padding: 15; /* 减小内边距 */
-    -fx-border-color: #96e6a1;
-    -fx-border-width: 2px;
-    -fx-border-radius: 15px;
-    -fx-background-radius: 15px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0.5, 0, 2);
-    -fx-spacing: 15; /* 减小子项间距 */
+    -fx-spacing: 16; /* Compact spacing */
+    -fx-padding: 0;
+    -fx-background-color: transparent;
 }
 
-/* 输入组样式 */
-.input-group {
-    -fx-spacing: 8; /* 减小子项间距 */
-    -fx-padding: 5 0; /* 减小上下内边距 */
-    -fx-alignment: center-left;
+/* 卡片样式 Card Style */
+.card-section, .settings-group, .stats-group {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8; /* Slightly smaller radius */
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.05), 6, 0, 0, 2);
+    -fx-padding: 16; /* Compact padding inside cards */
+    -fx-spacing: 12; /* Compact spacing between elements */
 }
 
-/* 设置组样式 */
-.settings-group {
-    -fx-background-color: linear-gradient(to right, #96e6a1, #d4fc79);
-    -fx-padding: 10; /* 减小内边距 */
-    -fx-border-color: #96e6a1;
-    -fx-border-width: 2px;
-    -fx-border-radius: 10px;
-    -fx-background-radius: 10px;
-    -fx-spacing: 8; /* 减小子项间距 */
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 8, 0.5, 0, 2);
+.input-label {
+    -fx-text-fill: #374151;
+    -fx-font-weight: bold;
+    -fx-min-width: 60px;
 }
 
-/* 文件统计信息样式 */
+/* 输入框 Modern TextField */
+.modern-text-field {
+    -fx-background-color: #f9fafb;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 6 10; /* Compact padding */
+    -fx-text-fill: #111827;
+}
+
+.modern-text-field:focused {
+    -fx-border-color: #4f46e5;
+    -fx-background-color: #ffffff;
+    -fx-effect: dropshadow(three-pass-box, rgba(79, 70, 229, 0.1), 3, 0, 0, 0);
+}
+
+.modern-text-field:disabled {
+    -fx-background-color: #f3f4f6;
+    -fx-opacity: 0.7;
+}
+
+/* 按钮 Modern Button */
+.modern-button {
+    -fx-background-radius: 4;
+    -fx-padding: 6 14; /* Compact padding */
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 2, 0, 0, 1);
+}
+
+.primary-button {
+    -fx-background-color: #4f46e5;
+    -fx-text-fill: white;
+}
+.primary-button:hover { -fx-background-color: #4338ca; }
+.primary-button:pressed { -fx-background-color: #3730a3; }
+
+/* Icon styling within buttons */
+.modern-button .ikonli-font-icon { 
+    -fx-icon-color: white; 
+    -fx-fill: white; /* Ensure fill is also white just in case */
+    -fx-icon-size: 14;
+}
+
+/* Special case for Browse buttons which might be small */
+.browse-button {
+    -fx-padding: 6 10;
+}
+
+.success-button {
+    -fx-background-color: #10b981;
+    -fx-text-fill: white;
+    -fx-font-size: 14px; /* Slightly reduced */
+    -fx-padding: 8 20;
+}
+.success-button:hover { -fx-background-color: #059669; }
+
+.warning-button {
+    -fx-background-color: #f59e0b;
+    -fx-text-fill: white;
+}
+.warning-button:hover { -fx-background-color: #d97706; }
+
+.info-button {
+    -fx-background-color: #3b82f6;
+    -fx-text-fill: white;
+}
+.info-button:hover { -fx-background-color: #2563eb; }
+
+.modern-button:disabled {
+    -fx-background-color: #e5e7eb;
+    -fx-text-fill: #9ca3af;
+    -fx-effect: none;
+    -fx-opacity: 0.8;
+}
+
+.modern-button:disabled .ikonli-font-icon {
+    -fx-icon-color: #9ca3af;
+    -fx-fill: #9ca3af;
+}
+
+/* 下拉框 ComboBox */
+.modern-combo-box {
+    -fx-background-color: #f9fafb;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 2 6; /* Very Compact */
+}
+.modern-combo-box:hover {
+    -fx-border-color: #9ca3af;
+}
+
+/* CheckBox & RadioButton */
+.modern-checkbox, .modern-radio-button {
+    -fx-text-fill: #374151;
+    -fx-cursor: hand;
+    -fx-padding: 4 0;
+}
+
+/* DatePicker */
+.modern-date-picker {
+    -fx-background-color: transparent;
+}
+.modern-date-picker .text-field {
+    -fx-background-color: #f9fafb;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 4 8;
+}
+
+/* 统计卡片 Stats */
 .stats-group {
-    -fx-background-color: linear-gradient(to right, #d4fc79, #96e6a1);
-    -fx-padding: 10; /* 减小内边距 */
-    -fx-border-color: #96e6a1;
-    -fx-border-width: 2px;
-    -fx-border-radius: 12px;
-    -fx-background-radius: 12px;
-    -fx-spacing: 15; /* 减小子项间距 */
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 8, 0.5, 0, 2);
-    -fx-alignment: center;
+    -fx-background-color: linear-gradient(to right, #4f46e5, #4338ca);
+    -fx-effect: dropshadow(three-pass-box, rgba(79, 70, 229, 0.2), 8, 0, 0, 3);
+    -fx-padding: 12;
 }
 
 .stat-item {
-    -fx-spacing: 5;
-    -fx-alignment: center-left;
+    -fx-spacing: 2;
 }
 
-/* 操作按钮组 */
-.button-group {
-    -fx-background-color: transparent;
-    -fx-spacing: 12; /* 减小按钮间距 */
-    -fx-padding: 8; /* 减小组内边距 */
-    -fx-alignment: center;
-    -fx-border-color: rgba(150, 230, 161, 0.5);
-    -fx-border-width: 2px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+.stat-label {
+    -fx-text-fill: rgba(255,255,255,0.8);
+    -fx-font-size: 12px;
+}
+
+.stat-value {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+/* 底部进度条 */
+.progress-container {
+    -fx-padding: 12 16;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e7eb;
+    -fx-border-width: 1 0 0 0;
+}
+
+.modern-progress-bar {
+    -fx-pref-height: 10;
+}
+.modern-progress-bar .bar {
+    -fx-effect: dropshadow(three-pass-box, rgba(79, 70, 229, 0.3), 4, 0, 0, 0);
+}
+
+.progress-label {
+    -fx-text-fill: #111827;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
 }

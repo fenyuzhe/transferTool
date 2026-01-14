@@ -18,30 +18,25 @@ public class TransferToolApplication extends Application {
     @Override
     public void start(Stage stage) {
         try {
-            // 加载FXML
             FXMLLoader fxmlLoader = new FXMLLoader(TransferToolApplication.class
                     .getResource("/com/protoss/tansfertool/fxml/transfer-view.fxml"));
             Parent root = fxmlLoader.load();
 
-            // 配置控制器
             TransferToolController controller = fxmlLoader.getController();
             controller.setPrimaryStage(stage);
 
-            // 创建场景并加载样式
             Scene scene = new Scene(root);
+            loadFonts();
             loadStyles(scene);
 
-            // 配置窗口
             stage.setScene(scene);
             stage.setTitle(WINDOW_TITLE);
 
-            // 加载图标
             var iconUrl = getClass().getResource("/com/protoss/tansfertool/images/logo2.png");
             if (iconUrl != null) {
                 stage.getIcons().add(new Image(iconUrl.openStream()));
             }
 
-            // 配置窗口属性
             stage.initStyle(StageStyle.DECORATED);
             stage.setResizable(false);
             stage.show();
@@ -65,6 +60,21 @@ public class TransferToolApplication extends Application {
             }
         } catch (Exception e) {
             log.error("Failed to load styles", e);
+        }
+    }
+
+    private void loadFonts() {
+        try {
+            String fontPath = "/com/protoss/tansfertool/fonts/SimSun.ttf";
+            var fontUrl = getClass().getResource(fontPath);
+            if (fontUrl != null) {
+                javafx.scene.text.Font.loadFont(fontUrl.toExternalForm(), 12);
+                log.info("Loaded custom font: SimSun");
+            } else {
+                log.warn("Custom font not found: {}", fontPath);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load custom fonts", e);
         }
     }
 

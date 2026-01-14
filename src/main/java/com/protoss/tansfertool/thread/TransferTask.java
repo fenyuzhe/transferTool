@@ -29,13 +29,13 @@ public class TransferTask extends Task<Integer> {
     private String tanscode;
     private Long count;
     private List<TransferThread> threadList;
-    private String compressMode; // 添加 compressMode 字段
+    private String compressMode;
 
     private String pattern = "(([0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]{1}|[0-9]{1}[1-9][0-9]{2}|[1-9][0-9]{3})(((0[13578]|1[02])(0[1-9]|[12][0-9]|3[01]))|((0[469]|11)(0[1-9]|[12][0-9]|30))|(02(0[1-9]|[1][0-9]|2[0-8]))))|((([0-9]{2})(0[48]|[2468][048]|[13579][26])|((0[48]|[2468][048]|[3579][26])00))0229)";
 
     public TransferTask(String compressMode, Long count, List<File> sourceFileList, String sourceFilePath,
-                        String targetFile, String strategy, boolean isCompress, String tanscode, long filterSize, int threads) {
-        this.compressMode = compressMode; // 初始化 compressMode
+            String targetFile, String strategy, boolean isCompress, String tanscode, long filterSize, int threads) {
+        this.compressMode = compressMode;
         this.sourceFileList = sourceFileList;
         this.sourceFilePath = sourceFilePath;
         this.targetFile = targetFile;
@@ -53,11 +53,7 @@ public class TransferTask extends Task<Integer> {
         List<File> list = new ArrayList<>();
         Pattern p = Pattern.compile(pattern);
         for (File f : sourceFileList) {
-            if (p.matcher(f.getName()).matches()) {
-                Collections.addAll(list, f);
-            } else {
-                list = sourceFileList;
-            }
+            checkFile(f, list, p);
         }
         log.info("待转移文件夹:" + list + "===list大小:" + list.size());
         threadList = new ArrayList<>();
@@ -69,16 +65,18 @@ public class TransferTask extends Task<Integer> {
                 int endIndex = (i < remainCount) ? startIndex + perThreadCount + 1 : startIndex + perThreadCount;
                 List<File> subList = list.subList(startIndex, endIndex);
                 log.info(i + "===subList:" + subList + "===subList大小:" + subList.size());
-                TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress, tanscode, filterSize, compressMode);
+                TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress,
+                        tanscode, filterSize, compressMode);
                 threadList.add(thread);
                 startIndex = endIndex;
-                thread.start(); // 启动线程
+                thread.start();
             }
         } else {
             for (File file : list) {
                 List<File> subList = Collections.singletonList(file);
-                TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress, tanscode, filterSize, compressMode);
-                log.info(thread.getName()+"-单独线程处理: " + subList);
+                TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress,
+                        tanscode, filterSize, compressMode);
+                log.info(thread.getName() + "-单独线程处理: " + subList);
                 threadList.add(thread);
                 thread.start();
             }
@@ -91,20 +89,52 @@ public class TransferTask extends Task<Integer> {
             }
         }
         log.info("耗时：" + (System.currentTimeMillis() - start_time));
+
+        // 如果是移动策略，且任务顺利完成，进行空文件夹清理
+        if ("移动".equals(strategy)) {
+            log.info("开始清理空文件夹...");
+            deleteEmptyDirs(new File(sourceFilePath));
+        }
+
         return 1;
+    }
+
+    private void deleteEmptyDirs(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) {
+            return;
+        }
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    deleteEmptyDirs(f);
+                }
+            }
+        }
+        files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            // 不删除根目录
+            if (!dir.getAbsolutePath().equals(sourceFilePath)) {
+                if (dir.delete()) {
+                    log.info("Deleted empty directory: " + dir.getAbsolutePath());
+                } else {
+                    log.warn("Failed to delete empty directory: " + dir.getAbsolutePath());
+                }
+            }
+        }
     }
 
     public void pause() {
         pause = true;
         for (TransferThread thread : threadList) {
-            thread.pause(); // 暂停所有线程
+            thread.pause();
         }
     }
 
     public void resume() {
         pause = false;
         for (TransferThread thread : threadList) {
-            thread.resume1(); // 恢复所有线程
+            thread.resume1();
         }
     }
 
@@ -117,9 +147,10 @@ public class TransferTask extends Task<Integer> {
         private boolean isCompress;
         private long filterSize;
         private String tanscode;
-        private String compressMode; // 添加 compressMode 字段
+        private String compressMode;
 
-        public TransferThread(List<File> sourceFileList, String sourceFilePath, String targetFile, String strategy, boolean isCompress, String tanscode, long filterSize, String compressMode) {
+        public TransferThread(List<File> sourceFileList, String sourceFilePath, String targetFile, String strategy,
+                boolean isCompress, String tanscode, long filterSize, String compressMode) {
             this.sourceFileList = sourceFileList;
             this.sourceFilePath = sourceFilePath;
             this.targetFile = targetFile;
@@ -127,7 +158,7 @@ public class TransferTask extends Task<Integer> {
             this.isCompress = isCompress;
             this.filterSize = filterSize;
             this.tanscode = tanscode;
-            this.compressMode = compressMode; // 初始化 compressMode
+            this.compressMode = compressMode;
         }
 
         public void run() {
@@ -138,7 +169,6 @@ public class TransferTask extends Task<Integer> {
 
         public void transfer(File f) {
             File[] files = f.listFiles();
-            // 先处理子文件和子文件夹
             if (files != null && files.length > 0) {
                 for (final File f1 : files) {
                     while (pause) {
@@ -147,7 +177,7 @@ public class TransferTask extends Task<Integer> {
                                 log.info("暂停");
                                 wait();
                             } catch (InterruptedException e) {
-                                log.error("Thread interrupted while waiting", e);
+                                log.error("线程中断", e);
                             }
                         }
                     }
@@ -155,7 +185,8 @@ public class TransferTask extends Task<Integer> {
                     if (f1.isFile()) {
                         try {
                             File desFile = new File(f1.getAbsolutePath().replace(sourceFilePath, targetFile));
-                            if ((f1.getName().toLowerCase().endsWith("jpg")) || (f1.getName().toLowerCase().endsWith("png"))) {
+                            if ((f1.getName().toLowerCase().endsWith("jpg"))
+                                    || (f1.getName().toLowerCase().endsWith("png"))) {
                                 copyFile(f1, desFile);
                             } else if (isCompress) {
                                 handleCompression(f1, desFile);
@@ -175,12 +206,11 @@ public class TransferTask extends Task<Integer> {
                             log.error("Error transferring file: " + f1.getAbsolutePath(), e);
                         }
                     } else {
-                        transfer(f1);  // 递归处理子文件夹
+                        transfer(f1);
                     }
                 }
             }
 
-            // 在处理完所有子内容后，检查文件夹是否为空并删除
             if ("移动".equals(strategy) && f.isDirectory()) {
                 System.out.println(f.getAbsolutePath());
                 File[] remainingFiles = f.listFiles();
@@ -198,11 +228,12 @@ public class TransferTask extends Task<Integer> {
             if (!parentDir.exists()) {
                 if (!parentDir.mkdirs()) {
                     log.error("Failed to create directory: " + parentDir.getAbsolutePath());
-                    copyFile(f1, desFile); // 创建目录失败时直接复制
+                    copyFile(f1, desFile);
                     return;
                 }
             }
             try {
+                log.info("开始压缩文件: {}", f1.getAbsolutePath());
                 if (compressMode.equals("imageio")) {
                     TranscoderMain main = new TranscoderMain();
                     main.transcode(f1, desFile, "JPEG2000Lossless");
@@ -211,12 +242,14 @@ public class TransferTask extends Task<Integer> {
                     main.setTransferSyntax(tanscode);
                     main.transcodeWithTranscoder(f1, desFile);
                 }
+                log.info("压缩完成: {}", f1.getAbsolutePath());
 
                 if (((filterSize != 0) && (f1.length() < filterSize * 1024)) || !desFile.exists()) {
                     copyFile(f1, desFile);
                 }
             } catch (Exception e) {
-                log.error("Error during compression", e);
+                log.warn("压缩出错, 直接复制文件: " + e.getMessage());
+                copyFile(f1, desFile);
             }
         }
 
@@ -228,6 +261,21 @@ public class TransferTask extends Task<Integer> {
             pause = false;
             synchronized (this) {
                 notify();
+            }
+        }
+    }
+
+    private void checkFile(File file, List<File> list, Pattern p) {
+        if (p.matcher(file.getName()).matches()) {
+            list.add(file);
+            return;
+        }
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            if (files != null && files.length > 0) {
+                for (File f : files) {
+                    checkFile(f, list, p);
+                }
             }
         }
     }
