@@ -64,6 +64,14 @@
     -fx-background-color: transparent;
 }
 
+/* ===== 消除容器 disable 时的白色遮罩 =====
+   JavaFX 默认对 disabled 节点降低 opacity，白色背景叠加后形成遮罩导致文字变白。
+   让容器保持 opacity:1.0，改由内部控件颜色自行表达禁用状态。 */
+VBox:disabled, HBox:disabled, GridPane:disabled,
+BorderPane:disabled, StackPane:disabled, AnchorPane:disabled {
+    -fx-opacity: 1.0;
+}
+
 /* 卡片样式 Card Style */
 .card-section, .settings-group, .stats-group {
     -fx-background-color: #ffffff;
@@ -96,8 +104,74 @@
 }
 
 .modern-text-field:disabled {
-    -fx-background-color: #f3f4f6;
-    -fx-opacity: 0.7;
+    -fx-background-color: #b8bfc9;
+    -fx-text-fill: #111827;
+    -fx-prompt-text-fill: #374151;
+    -fx-opacity: 1.0;
+}
+
+/* ===== 全局 disabled 状态文字修复 ===== */
+/* 确保任何 disabled 容器内的 Label 文字可见 */
+.text-input:disabled,
+.text-field:disabled,
+.text-area:disabled {
+    -fx-background-color: #b8bfc9;
+    -fx-text-fill: #111827;
+    -fx-prompt-text-fill: #374151;
+    -fx-opacity: 1.0;
+}
+
+/* ComboBox disabled —— 与输入框保持一致的深灰背景 */
+.modern-combo-box:disabled,
+.combo-box:disabled {
+    -fx-background-color: #b8bfc9;
+    -fx-opacity: 1.0;
+}
+/* 选中值显示区域 */
+.modern-combo-box:disabled .list-cell,
+.combo-box:disabled .list-cell {
+    -fx-background-color: #b8bfc9;
+    -fx-text-fill: #111827;
+}
+/* 下拉箭头按钮区域 */
+.modern-combo-box:disabled .arrow-button,
+.combo-box:disabled .arrow-button {
+    -fx-background-color: #a0a8b4;
+}
+.modern-combo-box:disabled .arrow-button .arrow,
+.combo-box:disabled .arrow-button .arrow {
+    -fx-background-color: #374151;
+}
+
+/* DatePicker disabled —— 覆盖所有可能的内部节点选择器 */
+.modern-date-picker:disabled .text-field,
+.date-picker:disabled .text-field,
+.modern-date-picker:disabled .date-picker-display-node,
+.date-picker:disabled .date-picker-display-node,
+.date-picker-display-node:disabled {
+    -fx-text-fill: #111827;
+    -fx-background-color: #b8bfc9;
+    -fx-opacity: 1.0;
+}
+/* 兜底：正常状态（非disabled）下使用深色文字 */
+.date-picker-display-node {
+    -fx-text-fill: #111827;
+    -fx-background-color: #f9fafb;
+}
+
+/* CheckBox & RadioButton disabled */
+.modern-checkbox:disabled,
+.check-box:disabled,
+.modern-radio-button:disabled,
+.radio-button:disabled {
+    -fx-text-fill: #374151;
+    -fx-opacity: 1.0;
+}
+
+/* Label disabled（当父容器 disable=true 时） */
+.label:disabled {
+    -fx-text-fill: #374151;
+    -fx-opacity: 1.0;
 }
 
 /* 按钮 Modern Button */
@@ -189,6 +263,106 @@
     -fx-border-radius: 4;
     -fx-background-radius: 4;
     -fx-padding: 4 8;
+    -fx-text-fill: #111827;
+}
+
+/* DatePicker 弹出日历面板 */
+.date-picker-popup {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 3);
+}
+
+/* 日历头部（月/年导航栏）—— 浅色背景 + 深色文字，确保可读 */
+.date-picker-popup .month-year-pane,
+.date-picker-popup > * > .month-year-pane {
+    -fx-background-color: #eef2ff;
+    -fx-padding: 8;
+}
+.date-picker-popup .spinner .button .left-arrow,
+.date-picker-popup .spinner .button .right-arrow {
+    -fx-background-color: #4f46e5;
+}
+.date-picker-popup .spinner > .button {
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+}
+.date-picker-popup .spinner > .button:hover {
+    -fx-background-color: rgba(79,70,229,0.1);
+}
+/* 月/年标签文字 —— 深色，保证在任何背景下可见 */
+.date-picker-popup .month-year-pane .label,
+.date-picker-popup .spinner .label,
+.date-picker-popup .spinner > .label {
+    -fx-text-fill: #1f2937;
+    -fx-font-weight: bold;
+}
+
+/* 年份/月份选择器弹窗（点击月年标签后展开）*/
+.date-picker-popup .year-month-pane .label,
+.date-picker-popup .calendar-grid .label {
+    -fx-text-fill: #111827;
+}
+/* 年月选择列表的每个选项 */
+.date-picker-popup .month-year-pane .combo-box .list-cell,
+.date-picker-popup .combo-box-popup .list-cell {
+    -fx-text-fill: #111827;
+    -fx-background-color: #ffffff;
+}
+.date-picker-popup .combo-box-popup .list-cell:hover {
+    -fx-background-color: #ede9fe;
+}
+
+/* 星期标题行 */
+.date-picker-popup .day-name-cell {
+    -fx-text-fill: #6b7280;
+    -fx-font-weight: bold;
+    -fx-font-size: 11px;
+}
+
+/* 普通日期格子 */
+.date-picker-popup .day-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #111827;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+.date-picker-popup .day-cell:hover {
+    -fx-background-color: #ede9fe;
+    -fx-background-radius: 4;
+}
+
+/* 今天 */
+.date-picker-popup .today {
+    -fx-text-fill: #4f46e5;
+    -fx-font-weight: bold;
+    -fx-border-color: #4f46e5;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+}
+
+/* 已选中日期 */
+.date-picker-popup .selected {
+    -fx-background-color: #4f46e5;
+    -fx-background-radius: 4;
+    -fx-text-fill: #ffffff;
+}
+.date-picker-popup .selected:hover {
+    -fx-background-color: #4338ca;
+}
+
+/* 非当前月的日期（灰显） */
+.date-picker-popup .day-cell.other-month {
+    -fx-text-fill: #d1d5db;
+}
+
+/* "今天"按钮 */
+.date-picker-popup .hyperlink {
+    -fx-text-fill: #4f46e5;
+    -fx-font-size: 12px;
+    -fx-border-color: transparent;
 }
 
 /* 统计卡片 Stats */

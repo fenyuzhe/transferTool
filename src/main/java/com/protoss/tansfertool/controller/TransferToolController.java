@@ -153,6 +153,19 @@ public class TransferToolController implements Initializable {
         hbox_5.setDisable(true);
         hbox_6.setDisable(true);
         hbox_7.setDisable(true);
+
+        // 监听 DatePicker 的 disabled 状态变化，用 Platform.runLater 延迟应用样式，
+        // 确保在 JavaFX 渲染帧结束后才覆盖 Modena 默认的 opacity:0.4 效果
+        dp_start.disabledProperty().addListener((obs, oldVal, nowDisabled) -> javafx.application.Platform
+                .runLater(() -> setDatePickerEditorStyle(dp_start, nowDisabled)));
+        dp_end.disabledProperty().addListener((obs, oldVal, nowDisabled) -> javafx.application.Platform
+                .runLater(() -> setDatePickerEditorStyle(dp_end, nowDisabled)));
+
+        // 设置初始状态样式（hbox_5 初始化为 disable，监听器不会触发初始值）
+        javafx.application.Platform.runLater(() -> {
+            setDatePickerEditorStyle(dp_start, true);
+            setDatePickerEditorStyle(dp_end, true);
+        });
     }
 
     private void initializeEventHandlers() {
@@ -225,6 +238,8 @@ public class TransferToolController implements Initializable {
         lb_fileslength.setText("");
         dp_start.setDisable(false);
         dp_end.setDisable(false);
+        setDatePickerEditorStyle(dp_start, false);
+        setDatePickerEditorStyle(dp_end, false);
         hbox_6.setDisable(true);
     }
 
@@ -263,6 +278,8 @@ public class TransferToolController implements Initializable {
         lb_fileslength.setText("");
         dp_start.setDisable(true);
         dp_end.setDisable(true);
+        setDatePickerEditorStyle(dp_start, true);
+        setDatePickerEditorStyle(dp_end, true);
         hbox_6.setDisable(true);
     }
 
@@ -445,8 +462,9 @@ public class TransferToolController implements Initializable {
         btn_stopSched.setDisable(false);
         setSchedInputsDisable(true);
 
-        // 使用 MILLISECONDS 确保精度和单位正确
-        scheduledTask = scheduler.scheduleWithFixedDelay(this::runScheduledTransfer, initialDelay, interval * 60 * 1000,
+        // 使用 scheduleAtFixedRate 确保每次任务的【开始时间】严格按照间隔触发，
+        // 而非 scheduleWithFixedDelay（上次完成后再等间隔）
+        scheduledTask = scheduler.scheduleAtFixedRate(this::runScheduledTransfer, initialDelay, interval * 60 * 1000,
                 java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
@@ -591,5 +609,33 @@ public class TransferToolController implements Initializable {
         hbox_3.setDisable(flag);
         hbox_4.setDisable(flag);
         hbox_5.setDisable(flag);
+        setDatePickerEditorStyle(dp_start, flag);
+        setDatePickerEditorStyle(dp_end, flag);
+    }
+
+    /**
+     * 直接设置 DatePicker 编辑器的样式，绕过 JavaFX CSS 伪类传播不稳定的问题。
+     * 禁用时：深灰背景 + 近黑文字 + opacity:1.0；启用时：恢复正常浅灰背景 + 深色文字。
+     */
+    private void setDatePickerEditorStyle(DatePicker dp, boolean disabled) {
+        if (dp == null || dp.getEditor() == null)
+            return;
+        if (disabled) {
+            dp.getEditor().setStyle(
+                    "-fx-background-color: #b8bfc9;" +
+                            "-fx-text-fill: #111827;" +
+                            "-fx-border-color: #a0a8b4;" +
+                            "-fx-border-radius: 4;" +
+                            "-fx-background-radius: 4;" +
+                            "-fx-opacity: 1.0;");
+        } else {
+            dp.getEditor().setStyle(
+                    "-fx-background-color: #f9fafb;" +
+                            "-fx-text-fill: #111827;" +
+                            "-fx-border-color: #d1d5db;" +
+                            "-fx-border-radius: 4;" +
+                            "-fx-background-radius: 4;" +
+                            "-fx-opacity: 1.0;");
+        }
     }
 }
