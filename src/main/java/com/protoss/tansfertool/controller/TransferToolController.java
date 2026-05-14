@@ -7,6 +7,7 @@ import com.protoss.tansfertool.entity.DirEntry;
 import com.protoss.tansfertool.thread.TransferTask;
 import com.protoss.tansfertool.util.TransferFileUtil;
 import javafx.collections.FXCollections;
+import javafx.application.Platform;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -21,7 +22,12 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 
 public class TransferToolController implements Initializable {
@@ -181,6 +187,10 @@ public class TransferToolController implements Initializable {
 
     private void startTransfer() {
         if (Objects.nonNull(fileList)) {
+            if (!validateTransferPaths(txt_sourceDir.getText(), txt_desDir.getText(), true)) {
+                return;
+            }
+
             String compressMode = radio_imageio.isSelected() ? IMAGEIO_MODE
                     : radio_opencv.isSelected() ? OPENCV_MODE : "";
 
@@ -197,11 +207,75 @@ public class TransferToolController implements Initializable {
                     Convert.toInt(txt_threads.getText().trim().isEmpty() ? "8" : txt_threads.getText().trim()));
 
             setupProgressBar();
+            task.setOnSucceeded(this::handleTaskCompletion);
+            task.setOnFailed(event -> {
+                log.error("Transfer task failed", task.getException());
+                resetUIAfterCompletion();
+            });
+            task.setOnCancelled(event -> resetUIAfterCompletion());
             Thread t = new Thread(task);
             t.setDaemon(true);
             t.start();
-            task.setOnSucceeded(this::handleTaskCompletion);
         }
+    }
+
+    private boolean validateTransferPaths(String sourcePath, String targetPath, boolean showAlert) {
+        String error = getTransferPathError(sourcePath, targetPath);
+        if (error == null) {
+            return true;
+        }
+        if (showAlert) {
+            showValidationError(error);
+        } else {
+            logToSched("错误: " + error);
+        }
+        return false;
+    }
+
+    private String getTransferPathError(String sourcePath, String targetPath) {
+        if (sourcePath == null || sourcePath.trim().isEmpty() || targetPath == null || targetPath.trim().isEmpty()) {
+            return "请先选择源目录和目标目录";
+        }
+        try {
+            Path sourceRoot = toComparablePath(Path.of(sourcePath));
+            Path targetRoot = toComparablePath(Path.of(targetPath));
+            if (sourceRoot.equals(targetRoot)) {
+                return "源目录和目标目录不能相同";
+            }
+            if (targetRoot.startsWith(sourceRoot)) {
+                return "目标目录不能位于源目录内部";
+            }
+            return null;
+        } catch (InvalidPathException e) {
+            return "目录路径格式不正确: " + e.getInput();
+        }
+    }
+
+    private Path toComparablePath(Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        try {
+            return normalized.toRealPath();
+        } catch (IOException e) {
+            Path parent = normalized.getParent();
+            if (parent != null && Files.exists(parent)) {
+                try {
+                    return parent.toRealPath().resolve(normalized.getFileName()).normalize();
+                } catch (IOException ignored) {
+                    return normalized;
+                }
+            }
+            return normalized;
+        }
+    }
+
+    private void showValidationError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
+        alert.setTitle("路径错误");
+        alert.setHeaderText(null);
+        if (primaryStage != null) {
+            alert.initOwner(primaryStage);
+        }
+        alert.showAndWait();
     }
 
     private void pauseTransfer() {
@@ -362,6 +436,17 @@ public class TransferToolController implements Initializable {
 
     private java.util.concurrent.ScheduledExecutorService scheduler;
     private java.util.concurrent.ScheduledFuture<?> scheduledTask;
+    private volatile ScheduledTransferConfig scheduledConfig;
+    private final AtomicBoolean scheduledTransferRunning = new AtomicBoolean(false);
+
+    private record ScheduledTransferConfig(
+            String sourcePath,
+            String targetPath,
+            String strategy,
+            String compressMode,
+            boolean isCompress,
+            int daysAgo) {
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -402,6 +487,19 @@ public class TransferToolController implements Initializable {
             logToSched("错误: 请先选择源路径和目标路径");
             return;
         }
+        if (!validateTransferPaths(txt_schedSource.getText(), txt_schedTarget.getText(), false)) {
+            return;
+        }
+        String compressSelection = box_schedCompress.getSelectionModel().getSelectedItem();
+        String compressMode = "ImageIO".equals(compressSelection) ? IMAGEIO_MODE
+                : "OpenCV".equals(compressSelection) ? OPENCV_MODE : "";
+        scheduledConfig = new ScheduledTransferConfig(
+                txt_schedSource.getText(),
+                txt_schedTarget.getText(),
+                box_schedStrategy.getSelectionModel().getSelectedItem(),
+                compressMode,
+                !compressMode.isEmpty(),
+                Convert.toInt(txt_daysAgo.getText(), 0));
 
         long interval = Convert.toLong(txt_interval.getText(), 60L);
         if (interval <= 0) {
@@ -464,17 +562,18 @@ public class TransferToolController implements Initializable {
 
         // 使用 scheduleAtFixedRate 确保每次任务的【开始时间】严格按照间隔触发，
         // 而非 scheduleWithFixedDelay（上次完成后再等间隔）
-        scheduledTask = scheduler.scheduleAtFixedRate(this::runScheduledTransfer, initialDelay, interval * 60 * 1000,
+        scheduledTask = scheduler.scheduleAtFixedRate(() -> runScheduledTransferIfIdle(scheduledConfig), initialDelay, interval * 60 * 1000,
                 java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     private void stopSchedule() {
         if (scheduledTask != null) {
-            scheduledTask.cancel(false);
+            scheduledTask.cancel(true);
         }
         if (scheduler != null) {
-            scheduler.shutdown();
+            scheduler.shutdownNow();
         }
+        scheduledTransferRunning.set(false);
         logToSched("定时任务已停止");
         lb_schedStatus.setText("已停止");
         lb_schedStatus.setStyle("-fx-text-fill: #6b7280; -fx-font-weight: bold;");
@@ -483,25 +582,39 @@ public class TransferToolController implements Initializable {
         setSchedInputsDisable(false);
     }
 
-    private void runScheduledTransfer() {
-        javafx.application.Platform.runLater(() -> {
+    private void runScheduledTransferIfIdle(ScheduledTransferConfig config) {
+        if (!scheduledTransferRunning.compareAndSet(false, true)) {
+            logToSched("上一次定时任务仍在执行，本次跳过");
+            return;
+        }
+        try {
+            runScheduledTransfer(config);
+        } finally {
+            scheduledTransferRunning.set(false);
+        }
+    }
+
+    private void runScheduledTransfer(ScheduledTransferConfig config) {
+        if (config == null) {
+            logToSched("Schedule config is empty");
+            return;
+        }
+        Platform.runLater(() -> {
             lb_lastRun.setText(cn.hutool.core.date.DateUtil.now());
             logToSched("开始执行定时转移...");
         });
 
         try {
-            String sourcePath = txt_schedSource.getText();
-            String targetPath = txt_schedTarget.getText();
-            String strategy = box_schedStrategy.getSelectionModel().getSelectedItem();
-            String compressSelection = box_schedCompress.getSelectionModel().getSelectedItem();
-            boolean isCompress = !"不压缩".equals(compressSelection);
-            String compressMode = "ImageIO".equals(compressSelection) ? IMAGEIO_MODE
-                    : "OpenCV".equals(compressSelection) ? OPENCV_MODE : "";
-            int daysAgo = Convert.toInt(txt_daysAgo.getText(), 0);
+            String sourcePath = config.sourcePath();
+            String targetPath = config.targetPath();
+            String strategy = config.strategy();
+            String compressMode = config.compressMode();
+            int daysAgo = config.daysAgo();
+            boolean isCompress = config.isCompress();
 
             File root = new File(sourcePath);
             if (!root.exists()) {
-                javafx.application.Platform.runLater(() -> logToSched("错误: 源路径不存在 " + sourcePath));
+                logToSched("错误: 源路径不存在 " + sourcePath);
                 return;
             }
 
@@ -509,18 +622,19 @@ public class TransferToolController implements Initializable {
             if (daysAgo > 0) {
                 Date targetDate = cn.hutool.core.date.DateUtil.offsetDay(new Date(), -daysAgo);
                 String targetDateStr = cn.hutool.core.date.DateUtil.format(targetDate, "yyyyMMdd"); // 假设文件夹格式包含日期
-                logToSched("筛选包含日期 " + targetDateStr + " 的文件夹 (N=" + daysAgo + ")");
+                logToSched("筛选日期早于或等于 " + targetDateStr + " 的文件夹 (N=" + daysAgo + ")");
 
                 List<DirEntry> list = new ArrayList<>();
-                java.time.LocalDate localTargetDate = java.time.LocalDate.now().minusDays(daysAgo);
-                TransferFileUtil.getDir(root, list, pattern, localTargetDate, localTargetDate);
+                java.time.LocalDate endDate = java.time.LocalDate.now().minusDays(daysAgo);
+                java.time.LocalDate startDate = java.time.LocalDate.of(1900, 1, 1);
+                TransferFileUtil.getDir(root, list, pattern, startDate, endDate);
 
                 for (DirEntry entry : list) {
                     roots.add(new File(entry.getDirPath()));
                 }
 
                 if (roots.isEmpty()) {
-                    logToSched("未找到 " + localTargetDate + " 的对应文件夹，跳过本次执行");
+                    logToSched("未找到 " + endDate + " 及更早的对应文件夹，跳过本次执行");
                     return;
                 }
             } else {
@@ -541,17 +655,34 @@ public class TransferToolController implements Initializable {
                     4);
 
             schedTask.run();
+            awaitScheduledTask(schedTask);
 
-            javafx.application.Platform.runLater(() -> logToSched("定时转移执行完成"));
+            logToSched("定时转移执行完成");
 
         } catch (Exception e) {
             log.error("Scheduled transfer failed", e);
-            javafx.application.Platform.runLater(() -> logToSched("执行失败: " + e.getMessage()));
+            logToSched("执行失败: " + e.getMessage());
+        }
+    }
+
+    private void awaitScheduledTask(TransferTask schedTask) {
+        try {
+            schedTask.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Scheduled transfer interrupted", e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
         }
     }
 
     private void logToSched(String msg) {
-        txt_schedLog.appendText("[" + cn.hutool.core.date.DateUtil.now() + "] " + msg + "\n");
+        Runnable appendLog = () -> txt_schedLog.appendText("[" + cn.hutool.core.date.DateUtil.now() + "] " + msg + "\n");
+        if (Platform.isFxApplicationThread()) {
+            appendLog.run();
+        } else {
+            Platform.runLater(appendLog);
+        }
     }
 
     private void setSchedInputsDisable(boolean disable) {

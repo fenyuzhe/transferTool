@@ -46,10 +46,6 @@ public class WaitingController implements Initializable {
         dialogStage.initStyle(StageStyle.TRANSPARENT);
         dialogStage.initModality(Modality.WINDOW_MODAL);
 
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
-
         task.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
             @Override
             public void handle(WorkerStateEvent workerStateEvent) {
@@ -64,6 +60,20 @@ public class WaitingController implements Initializable {
                 }
             }
         });
+        task.setOnFailed(workerStateEvent -> {
+            dialogStage.close();
+            hBox.setDisable(false);
+            log.error("Count task failed", task.getException());
+        });
+        task.setOnCancelled(workerStateEvent -> {
+            dialogStage.close();
+            hBox.setDisable(false);
+            log.warn("Count task cancelled");
+        });
+
+        Thread t = new Thread(task);
+        t.setDaemon(true);
+        t.start();
     }
 
     public Stage getDialogStage() {

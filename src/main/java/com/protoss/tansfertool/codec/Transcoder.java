@@ -27,7 +27,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.nio.ByteOrder;
+import java.nio.file.Path;
 import java.util.Hashtable;
+
+import static com.protoss.tansfertool.util.TransferFileUtil.commitGeneratedFile;
+import static com.protoss.tansfertool.util.TransferFileUtil.createTempPath;
+import static com.protoss.tansfertool.util.TransferFileUtil.deleteQuietly;
 
 public class Transcoder {
     private static final String RGB = "RGB";
@@ -144,21 +149,31 @@ public class Transcoder {
                 try {
                     iis.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("Failed to close image input stream", e);
                 }
             }
             if (ios != null) {
                 try {
                     ios.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("Failed to close image output stream", e);
                 }
             }
         }
     }
 
     public void transcode(File infile, File outfile) throws Exception {
-        outfile.delete();
+        Path tempPath = createTempPath(outfile);
+        try {
+            transcodeToFile(infile, tempPath.toFile());
+            commitGeneratedFile(tempPath, outfile);
+        } catch (Exception e) {
+            deleteQuietly(tempPath);
+            throw e;
+        }
+    }
+
+    private void transcodeToFile(File infile, File outfile) throws Exception {
         ImageInputStream iis = null;
         ImageOutputStream ios = null;
         try {
@@ -171,14 +186,14 @@ public class Transcoder {
                 try {
                     iis.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("Failed to close image input stream", e);
                 }
             }
             if (ios != null) {
                 try {
                     ios.close();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("Failed to close image output stream", e);
                 }
             }
         }

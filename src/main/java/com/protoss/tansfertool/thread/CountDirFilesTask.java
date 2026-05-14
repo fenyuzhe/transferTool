@@ -60,10 +60,11 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
 
     @Override
     protected Map<String, Long> call() throws Exception {
+        ForkJoinTask<Void> task = null;
         try {
-            estimateTotalFileCount();
+            estimatedTotalFiles.set(0);
+            updateProgress(-1, 1);
 
-            ForkJoinTask<Void> task;
             if (searchPattern != null) {
                 log.info("Starting parallel search and count with pattern: {}", filterPattern);
                 task = fileProcessingPool.submit(new SearchingAction(files));
@@ -81,6 +82,10 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
             result.put("count", totalCount.get());
             return result;
         } catch (TimeoutException e) {
+            if (task != null) {
+                task.cancel(true);
+            }
+            fileProcessingPool.shutdownNow();
             log.warn("任务超时，已处理: {} 文件", processedCount.get());
             return Map.of("size", totalSize.get(), "count", totalCount.get());
         } finally {
@@ -144,7 +149,11 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
             long processed = processedCount.incrementAndGet();
 
             if (processed % 100 == 0) {
-                updateProgress(processed, estimatedTotalFiles.get());
+                if (estimatedTotalFiles.get() > 0) {
+                    updateProgress(processed, estimatedTotalFiles.get());
+                } else {
+                    updateMessage(String.valueOf(processed));
+                }
             }
         } catch (Exception e) {
             log.warn("处理文件失败: {}", file, e);
@@ -162,7 +171,7 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
         protected void compute() {
             List<RecursiveAction> actions = new ArrayList<>();
             for (File file : targets) {
-                if (isCancelled())
+                if (isCancelled() || Thread.currentThread().isInterrupted())
                     return;
                 if (!file.exists())
                     continue;
@@ -201,7 +210,7 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
             List<RecursiveAction> actions = new ArrayList<>();
 
             for (File file : targets) {
-                if (isCancelled())
+                if (isCancelled() || Thread.currentThread().isInterrupted())
                     return;
                 if (!file.exists())
                     continue;
@@ -230,7 +239,7 @@ public class CountDirFilesTask extends Task<Map<String, Long>> {
                 Files.walkFileTree(dir, EnumSet.noneOf(FileVisitOption.class), MAX_DEPTH, new SimpleFileVisitor<>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        if (isCancelled())
+                        if (isCancelled() || Thread.currentThread().isInterrupted())
                             return FileVisitResult.TERMINATE;
                         processFile(file, attrs);
                         return FileVisitResult.CONTINUE;

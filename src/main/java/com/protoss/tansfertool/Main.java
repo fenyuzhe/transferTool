@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
-
 public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
@@ -18,9 +17,31 @@ public class Main {
             String tempDir = System.getProperty("java.io.tmpdir");
             File tempFile = new File(tempDir);
             if (!tempFile.exists() || !tempFile.canWrite()) {
-                log.error("Temporary directory is not accessible: " + tempDir);
-                // 可以尝试设置一个自定义的临时目录
-                System.setProperty("java.io.tmpdir", "C:/temp"); // 或其他可写目录
+                log.error("Temporary directory is not accessible: {}", tempDir);
+
+                String os = System.getProperty("os.name").toLowerCase();
+
+                String customTempDir;
+
+                if (os.contains("win")) {
+                    customTempDir = "C:/temp";
+                } else {
+                    // Linux / Unix
+                    customTempDir = "/tmp/transfertool";
+                }
+
+                File customDir = new File(customTempDir);
+
+                // 自动创建目录
+                if (!customDir.exists()) {
+                    boolean created = customDir.mkdirs();
+                    log.info("Create custom temp dir: {}, result={}", customTempDir, created);
+                }
+
+                // 设置新的临时目录
+                System.setProperty("java.io.tmpdir", customTempDir);
+
+                log.info("Set custom temp directory: {}", customTempDir);
             }
             // 获取项目运行路径
             String projectPath = new File("").getAbsolutePath();
@@ -38,7 +59,7 @@ public class Main {
             log.info("Set java.library.path to: {}", newLibPath);
 
             // 如果需要加载特定的本地库，可以在这里显式加载
-             System.loadLibrary("opencv_java");
+            System.loadLibrary("opencv_java");
 
             // 启动主应用程序
             log.info("Starting TransferToolApplication");

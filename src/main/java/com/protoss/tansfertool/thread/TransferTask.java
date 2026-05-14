@@ -7,18 +7,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
-import static com.protoss.tansfertool.util.TransferFileUtil.copyFile;
+import static com.protoss.tansfertool.util.TransferFileUtil.commitGeneratedFile;
+import static com.protoss.tansfertool.util.TransferFileUtil.copyFileSafely;
+import static com.protoss.tansfertool.util.TransferFileUtil.createTempPath;
+import static com.protoss.tansfertool.util.TransferFileUtil.deleteQuietly;
 
 public class TransferTask extends Task<Integer> {
     private static Logger log = LoggerFactory.getLogger(TransferTask.class);
+    /** 移动策略标识，替代散落在代码各处的魔法字符串 */
+    private static final String STRATEGY_MOVE = "移动";
     final private AtomicLong totalCount = new AtomicLong();
-    private boolean pause = false;
+    private final AtomicLong failedCount = new AtomicLong();
+    private final List<String> failedFiles = Collections.synchronizedList(new ArrayList<>());
+    private volatile boolean pause = false;
     private List<File> sourceFileList;
     private String sourceFilePath;
     private String targetFile;
@@ -27,13 +38,13 @@ public class TransferTask extends Task<Integer> {
     private long filterSize;
     private int threads;
     private String tanscode;
-    private Long count;
-    private List<TransferThread> threadList;
+    private long count;
+    private final List<TransferThread> threadList = Collections.synchronizedList(new ArrayList<>());
     private String compressMode;
 
     private String pattern = "(([0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]{1}|[0-9]{1}[1-9][0-9]{2}|[1-9][0-9]{3})(((0[13578]|1[02])(0[1-9]|[12][0-9]|3[01]))|((0[469]|11)(0[1-9]|[12][0-9]|30))|(02(0[1-9]|[1][0-9]|2[0-8]))))|((([0-9]{2})(0[48]|[2468][048]|[13579][26])|((0[48]|[2468][048]|[3579][26])00))0229)";
 
-    public TransferTask(String compressMode, Long count, List<File> sourceFileList, String sourceFilePath,
+    public TransferTask(String compressMode, long count, List<File> sourceFileList, String sourceFilePath,
             String targetFile, String strategy, boolean isCompress, String tanscode, long filterSize, int threads) {
         this.compressMode = compressMode;
         this.sourceFileList = sourceFileList;
@@ -48,15 +59,15 @@ public class TransferTask extends Task<Integer> {
     }
 
     @Override
-    protected Integer call() {
+    protected Integer call() throws Exception {
+        validateTransferRoots();
         long start_time = System.currentTimeMillis();
         List<File> list = new ArrayList<>();
         Pattern p = Pattern.compile(pattern);
         for (File f : sourceFileList) {
             checkFile(f, list, p);
         }
-        log.info("待转移文件夹:" + list + "===list大小:" + list.size());
-        threadList = new ArrayList<>();
+        log.info("待转移文件夹: {} ===list大小: {}", list, list.size());
         if (list.size() > threads) {
             int perThreadCount = list.size() / threads; // 每个线程处理的文件夹数
             int remainCount = list.size() % threads; // 处理不完的文件夹数
@@ -64,7 +75,7 @@ public class TransferTask extends Task<Integer> {
             for (int i = 0; i < threads; i++) {
                 int endIndex = (i < remainCount) ? startIndex + perThreadCount + 1 : startIndex + perThreadCount;
                 List<File> subList = list.subList(startIndex, endIndex);
-                log.info(i + "===subList:" + subList + "===subList大小:" + subList.size());
+                log.info("{}===subList: {} ===subList大小: {}", i, subList, subList.size());
                 TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress,
                         tanscode, filterSize, compressMode);
                 threadList.add(thread);
@@ -76,27 +87,65 @@ public class TransferTask extends Task<Integer> {
                 List<File> subList = Collections.singletonList(file);
                 TransferThread thread = new TransferThread(subList, sourceFilePath, targetFile, strategy, isCompress,
                         tanscode, filterSize, compressMode);
-                log.info(thread.getName() + "-单独线程处理: " + subList);
+                log.info("{}-单独线程处理: {}", thread.getName(), subList);
                 threadList.add(thread);
                 thread.start();
             }
         }
-        for (TransferThread thread : threadList) {
+        List<TransferThread> threadsSnapshot;
+        synchronized (threadList) {
+            threadsSnapshot = new ArrayList<>(threadList);
+        }
+        for (TransferThread thread : threadsSnapshot) {
             try {
                 thread.join();
             } catch (InterruptedException e) {
                 log.error("Thread interrupted", e);
+                Thread.currentThread().interrupt(); // 恢复中断标志，允许任务被正确取消
+                throw e;
             }
         }
-        log.info("耗时：" + (System.currentTimeMillis() - start_time));
+        log.info("耗时：{} ms", System.currentTimeMillis() - start_time);
+
+        if (failedCount.get() > 0) {
+            throw new IOException("Transfer failed for " + failedCount.get() + " file(s): " + failedFiles);
+        }
 
         // 如果是移动策略，且任务顺利完成，进行空文件夹清理
-        if ("移动".equals(strategy)) {
+        if (STRATEGY_MOVE.equals(strategy)) {
             log.info("开始清理空文件夹...");
             deleteEmptyDirs(new File(sourceFilePath));
         }
 
         return 1;
+    }
+
+    private void validateTransferRoots() throws IOException {
+        Path sourceRoot = toComparablePath(Paths.get(sourceFilePath));
+        Path targetRoot = toComparablePath(Paths.get(targetFile));
+        if (sourceRoot.equals(targetRoot)) {
+            throw new IOException("Source and target directories must be different: " + sourceRoot);
+        }
+        if (targetRoot.startsWith(sourceRoot)) {
+            throw new IOException("Target directory must not be inside source directory: " + targetRoot);
+        }
+    }
+
+    private Path toComparablePath(Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        try {
+            return normalized.toRealPath();
+        } catch (IOException e) {
+            Path parent = normalized.getParent();
+            if (parent != null && Files.exists(parent)) {
+                try {
+                    return parent.toRealPath().resolve(normalized.getFileName()).normalize();
+                } catch (IOException ignored) {
+                    return normalized;
+                }
+            }
+            return normalized;
+        }
     }
 
     private void deleteEmptyDirs(File dir) {
@@ -116,9 +165,9 @@ public class TransferTask extends Task<Integer> {
             // 不删除根目录
             if (!dir.getAbsolutePath().equals(sourceFilePath)) {
                 if (dir.delete()) {
-                    log.info("Deleted empty directory: " + dir.getAbsolutePath());
+                    log.info("Deleted empty directory: {}", dir.getAbsolutePath());
                 } else {
-                    log.warn("Failed to delete empty directory: " + dir.getAbsolutePath());
+                    log.warn("Failed to delete empty directory: {}", dir.getAbsolutePath());
                 }
             }
         }
@@ -126,39 +175,49 @@ public class TransferTask extends Task<Integer> {
 
     public void pause() {
         pause = true;
-        for (TransferThread thread : threadList) {
+        List<TransferThread> threadsSnapshot;
+        synchronized (threadList) {
+            threadsSnapshot = new ArrayList<>(threadList);
+        }
+        for (TransferThread thread : threadsSnapshot) {
             thread.pause();
         }
     }
 
     public void resume() {
         pause = false;
-        for (TransferThread thread : threadList) {
-            thread.resume1();
+        List<TransferThread> threadsSnapshot;
+        synchronized (threadList) {
+            threadsSnapshot = new ArrayList<>(threadList);
+        }
+        for (TransferThread thread : threadsSnapshot) {
+            thread.resumeTransfer();
         }
     }
 
     class TransferThread extends Thread {
-        private boolean pause = false;
-        private List<File> sourceFileList;
-        private String sourceFilePath;
-        private String targetFile;
-        private String strategy;
-        private boolean isCompress;
-        private long filterSize;
-        private String tanscode;
-        private String compressMode;
+        private volatile boolean pause = false;
+        private final List<File> sourceFileList;
+        private final String strategy;
+        private final boolean isCompress;
+        private final long filterSize;
+        private final String tanscode;
+        private final String compressMode;
+        /** 缓存解析好的路径，避免每次处理文件时重复计算 */
+        private final Path sourceRoot;
+        private final Path targetRoot;
 
         public TransferThread(List<File> sourceFileList, String sourceFilePath, String targetFile, String strategy,
                 boolean isCompress, String tanscode, long filterSize, String compressMode) {
             this.sourceFileList = sourceFileList;
-            this.sourceFilePath = sourceFilePath;
-            this.targetFile = targetFile;
             this.strategy = strategy;
             this.isCompress = isCompress;
             this.filterSize = filterSize;
             this.tanscode = tanscode;
             this.compressMode = compressMode;
+            // 在构造时计算并缓存，避免每个文件都重复解析
+            this.sourceRoot = Paths.get(sourceFilePath).toAbsolutePath().normalize();
+            this.targetRoot = Paths.get(targetFile).toAbsolutePath().normalize();
         }
 
         public void run() {
@@ -171,39 +230,33 @@ public class TransferTask extends Task<Integer> {
             File[] files = f.listFiles();
             if (files != null && files.length > 0) {
                 for (final File f1 : files) {
-                    while (pause) {
-                        synchronized (this) {
-                            try {
-                                log.info("暂停");
-                                wait();
-                            } catch (InterruptedException e) {
-                                log.error("线程中断", e);
-                            }
-                        }
+                    try {
+                        waitIfPaused();
+                    } catch (InterruptedException e) {
+                        log.error("线程中断", e);
+                        Thread.currentThread().interrupt();
+                        return;
                     }
 
                     if (f1.isFile()) {
                         try {
-                            File desFile = new File(f1.getAbsolutePath().replace(sourceFilePath, targetFile));
-                            if ((f1.getName().toLowerCase().endsWith("jpg"))
-                                    || (f1.getName().toLowerCase().endsWith("png"))) {
-                                copyFile(f1, desFile);
-                            } else if (isCompress) {
-                                handleCompression(f1, desFile);
-                            } else {
-                                copyFile(f1, desFile);
-                            }
+                            File desFile = resolveTargetFile(f1);
+                            transferOneFile(f1, desFile);
 
                             if (desFile.exists()) {
-                                if ("移动".equals(strategy)) {
-                                    f1.delete();
+                                boolean transferComplete = true;
+                                if (STRATEGY_MOVE.equals(strategy)) {
+                                    deleteSourceFile(f1);
                                 }
-                                totalCount.incrementAndGet();
-                                updateProgress(totalCount.longValue(), count);
-                                updateMessage(totalCount.longValue() + "/" + count);
+                                if (transferComplete) {
+                                    totalCount.incrementAndGet();
+                                    updateProgress(totalCount.longValue(), count);
+                                    updateMessage(totalCount.longValue() + "/" + count);
+                                }
                             }
                         } catch (Exception e) {
-                            log.error("Error transferring file: " + f1.getAbsolutePath(), e);
+                            recordFailure(f1, e);
+                            log.error("Error transferring file: {}", f1.getAbsolutePath(), e);
                         }
                     } else {
                         transfer(f1);
@@ -211,56 +264,99 @@ public class TransferTask extends Task<Integer> {
                 }
             }
 
-            if ("移动".equals(strategy) && f.isDirectory()) {
-                System.out.println(f.getAbsolutePath());
-                File[] remainingFiles = f.listFiles();
-                if (remainingFiles == null || remainingFiles.length == 0) {
-                    System.out.println(f.getAbsolutePath() + "是空文件夹，执行删除");
-                    if (!f.delete()) {
-                        log.error("Failed to delete folder: " + f.getAbsolutePath());
-                    }
-                }
+            // 目录的清理工作由 call() 末尾的 deleteEmptyDirs() 统一负责，
+            // 此处不做提前删除，避免多线程场景下的竞态条件。
+        }
+
+        private File resolveTargetFile(File sourceFile) throws IOException {
+            // 使用构造时缓存的 sourceRoot/targetRoot，无需重复解析
+            Path sourcePath = sourceFile.toPath().toAbsolutePath().normalize();
+
+            if (!sourcePath.startsWith(sourceRoot)) {
+                throw new IOException("Source file is outside source root: " + sourcePath);
+            }
+
+            Path relativePath = sourceRoot.relativize(sourcePath);
+            Path targetPath = targetRoot.resolve(relativePath).normalize();
+            if (!targetPath.startsWith(targetRoot)) {
+                throw new IOException("Resolved target file is outside target root: " + targetPath);
+            }
+            return targetPath.toFile();
+        }
+
+        private void transferOneFile(File sourceFile, File desFile) throws IOException {
+            String fileName = sourceFile.getName().toLowerCase();
+            if (fileName.endsWith("jpg") || fileName.endsWith("png") || !isCompress) {
+                copyFileSafely(sourceFile, desFile);
+                return;
+            }
+            handleCompression(sourceFile, desFile);
+        }
+
+        private void deleteSourceFile(File sourceFile) throws IOException {
+            try {
+                Files.delete(sourceFile.toPath());
+            } catch (IOException e) {
+                log.warn("Failed to delete source file after transfer: {}", sourceFile.getAbsolutePath(), e);
+                throw e;
             }
         }
 
-        private void handleCompression(File f1, File desFile) {
-            File parentDir = desFile.getParentFile();
-            if (!parentDir.exists()) {
-                if (!parentDir.mkdirs()) {
-                    log.error("Failed to create directory: " + parentDir.getAbsolutePath());
-                    copyFile(f1, desFile);
-                    return;
-                }
+        private void recordFailure(File sourceFile, Exception e) {
+            failedCount.incrementAndGet();
+            failedFiles.add(sourceFile.getAbsolutePath() + " (" + e.getMessage() + ")");
+        }
+
+        private void handleCompression(File f1, File desFile) throws IOException {
+            if ((filterSize != 0) && (f1.length() < filterSize * 1024)) {
+                copyFileSafely(f1, desFile);
+                return;
             }
+
+            Path tempPath = createTempPath(desFile);
             try {
                 log.info("开始压缩文件: {}", f1.getAbsolutePath());
-                if (compressMode.equals("imageio")) {
+                File tempFile = tempPath.toFile();
+                if ("imageio".equals(compressMode)) {
                     TranscoderMain main = new TranscoderMain();
-                    main.transcode(f1, desFile, "JPEG2000Lossless");
+                    main.transcode(f1, tempFile, "JPEG2000Lossless");
                 } else {
                     Dcm2Dcm main = new Dcm2Dcm();
                     main.setTransferSyntax(tanscode);
-                    main.transcodeWithTranscoder(f1, desFile);
+                    main.transcodeWithTranscoder(f1, tempFile);
                 }
+                commitGeneratedFile(tempPath, desFile);
                 log.info("压缩完成: {}", f1.getAbsolutePath());
-
-                if (((filterSize != 0) && (f1.length() < filterSize * 1024)) || !desFile.exists()) {
-                    copyFile(f1, desFile);
-                }
             } catch (Exception e) {
-                log.warn("压缩出错, 直接复制文件: " + e.getMessage());
-                copyFile(f1, desFile);
+                deleteQuietly(tempPath);
+                log.warn("压缩出错, 直接复制文件: {}", e.getMessage());
+                copyFileSafely(f1, desFile);
+            }
+        }
+
+        private void waitIfPaused() throws InterruptedException {
+            synchronized (this) {
+                while (pause || TransferTask.this.pause) {
+                    log.info("暂停");
+                    wait();
+                }
             }
         }
 
         public void pause() {
-            pause = true;
+            pauseTransfer();
         }
 
-        public void resume1() {
-            pause = false;
+        public void pauseTransfer() {
             synchronized (this) {
-                notify();
+                pause = true;
+            }
+        }
+
+        public void resumeTransfer() {
+            synchronized (this) {
+                pause = false;
+                notifyAll();
             }
         }
     }

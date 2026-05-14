@@ -326,7 +326,7 @@ public class TranscoderMain {
                             ? (srcLength / (float) destLength) + " : 1"
                             : "1 : " + (destLength / (float) srcLength)));
         } catch (Exception e) {
-            e.printStackTrace(System.out);
+            log.error("Transcode byte array failed", e);
         }
     }
 
@@ -335,22 +335,18 @@ public class TranscoderMain {
      * @param dest 转换后文件
      * @param transparam 转换参数,包括转换方法和参数
      */
-    public synchronized void transcode(File src, File dest, String transparam) {
+    public synchronized void transcode(File src, File dest, String transparam) throws Exception {
         String[] params = transparam.split(";");
         String transUID = params[0].equals("") ? null : UIDsx.forName(params[0]);
 
         Dataset ds_in = fileToDataset(src);
         if (ds_in == null) {
-            return;
+            throw new IOException("Cannot read DICOM dataset: " + src.getAbsolutePath());
         }
 
         if ((transUID == null) || transUID.equals(ds_in.getFileMetaInfo().getTransferSyntaxUID())) {
-            try {
-                log.info("copy file without transcode" + src + "to" + dest);
-                copyFile(src, dest);
-            } catch (Exception e) {
-                log.error(e.getMessage());
-            }
+            log.info("copy file without transcode" + src + "to" + dest);
+            copyFile(src, dest);
             return;
         }
         log.info("copy file with transcode " + transparam);
@@ -366,9 +362,12 @@ public class TranscoderMain {
         transcode(t, src, dest);
     }
 
-    public void transcode(Transcoder t, File src, File dest) {
+    public void transcode(Transcoder t, File src, File dest) throws Exception {
         if (src.isDirectory()) {
             File[] file = src.listFiles();
+            if (file == null) {
+                throw new IOException("Cannot list directory: " + src.getAbsolutePath());
+            }
             for (int i = 0; i < file.length; i++) {
                 transcode(t, file[i], dest);
             }
@@ -400,13 +399,13 @@ public class TranscoderMain {
                                 ? (srcLength / (float) destLength) + " : 1"
                                 : "1 : " + (destLength / (float) srcLength)));
             } catch (Exception e) {
-                e.printStackTrace(System.out);
                 log.error("trancode file failed :"+e);
                 try {
                     log.info("trancode file failed copy file without not transcode" + src + "to" + dest);
                     copyFile(src, dest);
                 } catch (Exception ex) {
                     log.error(ex.getMessage());
+                    throw ex;
                 }
             }
         }
