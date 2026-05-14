@@ -115,6 +115,43 @@
                            </VBox>
                         </HBox>
 
+                        <!-- 运行进度指标 -->
+                        <VBox styleClass="runtime-stats-section" spacing="10">
+                           <GridPane hgap="18" vgap="10">
+                              <columnConstraints>
+                                 <ColumnConstraints percentWidth="20"/>
+                                 <ColumnConstraints percentWidth="20"/>
+                                 <ColumnConstraints percentWidth="20"/>
+                                 <ColumnConstraints percentWidth="20"/>
+                                 <ColumnConstraints percentWidth="20"/>
+                              </columnConstraints>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="0" GridPane.columnIndex="0">
+                                 <Label text="已转移文件数" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_transferredCount" text="0" styleClass="runtime-stat-value"/>
+                              </VBox>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="0" GridPane.columnIndex="1">
+                                 <Label text="已转移容量" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_transferredSize" text="0 B" styleClass="runtime-stat-value"/>
+                              </VBox>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="0" GridPane.columnIndex="2">
+                                 <Label text="当前速度" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_speed" text="0 B/s" styleClass="runtime-stat-value"/>
+                              </VBox>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="0" GridPane.columnIndex="3">
+                                 <Label text="已耗时" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_elapsed" text="00:00:00" styleClass="runtime-stat-value"/>
+                              </VBox>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="0" GridPane.columnIndex="4">
+                                 <Label text="错误 / 跳过" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_errorSkipCount" text="0 / 0" styleClass="runtime-stat-value"/>
+                              </VBox>
+                              <VBox styleClass="runtime-stat-item" GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="5">
+                                 <Label text="当前处理路径" styleClass="runtime-stat-label"/>
+                                 <Label fx:id="lb_currentPath" text="-" wrapText="true" styleClass="runtime-path-value"/>
+                              </VBox>
+                           </GridPane>
+                        </VBox>
+
                         <!-- 操作按钮 -->
                         <HBox fx:id="hbox_6" styleClass="button-group" spacing="16" alignment="CENTER" disable="true">
                             <padding><Insets top="8" bottom="8"/></padding>

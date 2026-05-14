@@ -1,6 +1,9 @@
 package com.protoss.tansfertool.thread;
 
 import com.protoss.tansfertool.codec.TranscoderMain;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
 import org.dcm4che3.tool.dcm2dcm.Dcm2Dcm;
 import org.slf4j.Logger;
@@ -27,9 +30,14 @@ public class TransferTask extends Task<Integer> {
     /** 移动策略标识，替代散落在代码各处的魔法字符串 */
     private static final String STRATEGY_MOVE = "移动";
     final private AtomicLong totalCount = new AtomicLong();
+    private final AtomicLong transferredBytes = new AtomicLong();
     private final AtomicLong failedCount = new AtomicLong();
+    private final AtomicLong skippedCount = new AtomicLong();
+    private final AtomicLong lastUiUpdateTime = new AtomicLong();
     private final List<String> failedFiles = Collections.synchronizedList(new ArrayList<>());
     private volatile boolean pause = false;
+    private volatile long startTime;
+    private volatile String currentPath = "";
     private List<File> sourceFileList;
     private String sourceFilePath;
     private String targetFile;
@@ -41,6 +49,13 @@ public class TransferTask extends Task<Integer> {
     private long count;
     private final List<TransferThread> threadList = Collections.synchronizedList(new ArrayList<>());
     private String compressMode;
+
+    private final StringProperty transferredFilesText = new SimpleStringProperty("0");
+    private final StringProperty transferredSizeText = new SimpleStringProperty("0 B");
+    private final StringProperty speedText = new SimpleStringProperty("0 B/s");
+    private final StringProperty elapsedText = new SimpleStringProperty("00:00:00");
+    private final StringProperty currentPathText = new SimpleStringProperty("-");
+    private final StringProperty errorSkipText = new SimpleStringProperty("0 / 0");
 
     private String pattern = "(([0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]{1}|[0-9]{1}[1-9][0-9]{2}|[1-9][0-9]{3})(((0[13578]|1[02])(0[1-9]|[12][0-9]|3[01]))|((0[469]|11)(0[1-9]|[12][0-9]|30))|(02(0[1-9]|[1][0-9]|2[0-8]))))|((([0-9]{2})(0[48]|[2468][048]|[13579][26])|((0[48]|[2468][048]|[3579][26])00))0229)";
 
@@ -61,7 +76,8 @@ public class TransferTask extends Task<Integer> {
     @Override
     protected Integer call() throws Exception {
         validateTransferRoots();
-        long start_time = System.currentTimeMillis();
+        startTime = System.currentTimeMillis();
+        publishRuntimeMetrics(true);
         List<File> list = new ArrayList<>();
         Pattern p = Pattern.compile(pattern);
         for (File f : sourceFileList) {
@@ -105,7 +121,8 @@ public class TransferTask extends Task<Integer> {
                 throw e;
             }
         }
-        log.info("耗时：{} ms", System.currentTimeMillis() - start_time);
+        publishRuntimeMetrics(true);
+        log.info("Transfer elapsed: {} ms", System.currentTimeMillis() - startTime);
 
         if (failedCount.get() > 0) {
             throw new IOException("Transfer failed for " + failedCount.get() + " file(s): " + failedFiles);
@@ -118,6 +135,30 @@ public class TransferTask extends Task<Integer> {
         }
 
         return 1;
+    }
+
+    public StringProperty transferredFilesTextProperty() {
+        return transferredFilesText;
+    }
+
+    public StringProperty transferredSizeTextProperty() {
+        return transferredSizeText;
+    }
+
+    public StringProperty speedTextProperty() {
+        return speedText;
+    }
+
+    public StringProperty elapsedTextProperty() {
+        return elapsedText;
+    }
+
+    public StringProperty currentPathTextProperty() {
+        return currentPathText;
+    }
+
+    public StringProperty errorSkipTextProperty() {
+        return errorSkipText;
     }
 
     private void validateTransferRoots() throws IOException {
@@ -240,6 +281,9 @@ public class TransferTask extends Task<Integer> {
 
                     if (f1.isFile()) {
                         try {
+                            currentPath = f1.getAbsolutePath();
+                            publishRuntimeMetrics(false);
+                            long sourceSize = Math.max(0, f1.length());
                             File desFile = resolveTargetFile(f1);
                             transferOneFile(f1, desFile);
 
@@ -250,18 +294,23 @@ public class TransferTask extends Task<Integer> {
                                 }
                                 if (transferComplete) {
                                     totalCount.incrementAndGet();
-                                    updateProgress(totalCount.longValue(), count);
-                                    updateMessage(totalCount.longValue() + "/" + count);
+                                    transferredBytes.addAndGet(sourceSize);
+                                    publishRuntimeMetrics(true);
                                 }
                             }
                         } catch (Exception e) {
                             recordFailure(f1, e);
+                            publishRuntimeMetrics(true);
                             log.error("Error transferring file: {}", f1.getAbsolutePath(), e);
                         }
                     } else {
                         transfer(f1);
                     }
                 }
+            } else if (f.isDirectory()) {
+                skippedCount.incrementAndGet();
+                currentPath = f.getAbsolutePath();
+                publishRuntimeMetrics(true);
             }
 
             // 目录的清理工作由 call() 末尾的 deleteEmptyDirs() 统一负责，
@@ -374,5 +423,66 @@ public class TransferTask extends Task<Integer> {
                 }
             }
         }
+    }
+
+    private void publishRuntimeMetrics(boolean force) {
+        long now = System.currentTimeMillis();
+        long last = lastUiUpdateTime.get();
+        if (!force && now - last < 500) {
+            return;
+        }
+        if (!lastUiUpdateTime.compareAndSet(last, now) && !force) {
+            return;
+        }
+
+        long done = totalCount.get();
+        long bytes = transferredBytes.get();
+        long elapsedMillis = Math.max(1L, now - startTime);
+        long bytesPerSecond = bytes * 1000L / elapsedMillis;
+        String transferredFiles = count > 0 ? done + " / " + count : String.valueOf(done);
+        String transferredSize = formatBytes(bytes);
+        String speed = formatBytes(bytesPerSecond) + "/s";
+        String elapsed = formatElapsed(elapsedMillis);
+        String path = currentPath == null || currentPath.isEmpty() ? "-" : currentPath;
+        String errorSkip = failedCount.get() + " / " + skippedCount.get();
+
+        if (count > 0) {
+            updateProgress(done, count);
+            updateMessage(done + "/" + count);
+        } else {
+            updateProgress(-1, 1);
+            updateMessage("已处理 " + done + " 个文件");
+        }
+
+        Platform.runLater(() -> {
+            transferredFilesText.set(transferredFiles);
+            transferredSizeText.set(transferredSize);
+            speedText.set(speed);
+            elapsedText.set(elapsed);
+            currentPathText.set(path);
+            errorSkipText.set(errorSkip);
+        });
+    }
+
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        double value = bytes;
+        String[] units = {"KB", "MB", "GB", "TB", "PB"};
+        int unitIndex = -1;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex++;
+        }
+        return String.format(java.util.Locale.ROOT, "%.2f %s", value, units[unitIndex]);
+    }
+
+    private String formatElapsed(long elapsedMillis) {
+        long totalSeconds = elapsedMillis / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds);
     }
 }

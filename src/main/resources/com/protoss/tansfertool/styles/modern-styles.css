@@ -387,6 +387,36 @@ BorderPane:disabled, StackPane:disabled, AnchorPane:disabled {
     -fx-font-weight: bold;
 }
 
+.runtime-stats-section {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.05), 6, 0, 0, 2);
+    -fx-padding: 14;
+}
+
+.runtime-stat-item {
+    -fx-spacing: 4;
+    -fx-min-height: 54;
+}
+
+.runtime-stat-label {
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 12px;
+}
+
+.runtime-stat-value {
+    -fx-text-fill: #111827;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.runtime-path-value {
+    -fx-text-fill: #111827;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-max-height: 38;
+}
+
 /* 底部进度条 */
 .progress-container {
     -fx-padding: 12 16;

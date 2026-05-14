@@ -24,6 +24,8 @@ public class WaitingController implements Initializable {
     private static Logger log = LoggerFactory.getLogger(WaitingController.class);
     @FXML
     private VBox vboxPane;
+    @FXML
+    private Label lb_message;
 
     private Stage dialogStage;
     private Stage primaryStage;
@@ -34,17 +36,7 @@ public class WaitingController implements Initializable {
     }
 
     public void setPrimaryStage(CountDirFilesTask task, Stage stage, Label labelsize, Label labelcount, HBox hBox) {
-        if (this.primaryStage == null) {
-            this.primaryStage = stage;
-        }
-        Scene scene = new Scene(vboxPane);
-        scene.setFill(null);
-        dialogStage = new Stage();
-        dialogStage.setScene(scene);
-        dialogStage.initOwner(primaryStage);
-        dialogStage.initStyle(StageStyle.UNDECORATED);
-        dialogStage.initStyle(StageStyle.TRANSPARENT);
-        dialogStage.initModality(Modality.WINDOW_MODAL);
+        prepare(stage, "正在计算大小，请稍候...");
 
         task.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
             @Override
@@ -74,6 +66,22 @@ public class WaitingController implements Initializable {
         Thread t = new Thread(task);
         t.setDaemon(true);
         t.start();
+    }
+
+    public void prepare(Stage stage, String message) {
+        if (this.primaryStage == null) {
+            this.primaryStage = stage;
+        }
+        if (lb_message != null && message != null && !message.isEmpty()) {
+            lb_message.setText(message);
+        }
+        Scene scene = new Scene(vboxPane);
+        scene.setFill(null);
+        dialogStage = new Stage();
+        dialogStage.setScene(scene);
+        dialogStage.initOwner(primaryStage);
+        dialogStage.initStyle(StageStyle.TRANSPARENT);
+        dialogStage.initModality(Modality.WINDOW_MODAL);
     }
 
     public Stage getDialogStage() {

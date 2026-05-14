@@ -2,12 +2,12 @@ package com.protoss.tansfertool.controller;
 
 import cn.hutool.core.convert.Convert;
 
-import com.protoss.tansfertool.thread.CountDirFilesTask;
 import com.protoss.tansfertool.entity.DirEntry;
 import com.protoss.tansfertool.thread.TransferTask;
 import com.protoss.tansfertool.util.TransferFileUtil;
 import javafx.collections.FXCollections;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -75,6 +75,18 @@ public class TransferToolController implements Initializable {
     private Label lb_filescount;
     @FXML
     private Label lb_percent;
+    @FXML
+    private Label lb_transferredCount;
+    @FXML
+    private Label lb_transferredSize;
+    @FXML
+    private Label lb_speed;
+    @FXML
+    private Label lb_elapsed;
+    @FXML
+    private Label lb_currentPath;
+    @FXML
+    private Label lb_errorSkipCount;
 
     @FXML
     private Button btn_start;
@@ -196,7 +208,7 @@ public class TransferToolController implements Initializable {
 
             task = new TransferTask(
                     compressMode,
-                    Convert.toLong(lb_filescount.getText().replace("个", "")),
+                    parseCount(lb_filescount.getText()),
                     fileList,
                     txt_sourceDir.getText(),
                     txt_desDir.getText(),
@@ -323,26 +335,101 @@ public class TransferToolController implements Initializable {
         if (sourcePath != null && !sourcePath.isEmpty()) {
             fileList = new ArrayList<>();
             fileList.add(new File(sourcePath));
-            loadWaitingController();
+            prepareTransferWithoutPrecount();
         }
     }
 
     private void handleDateSelection() {
         if (txt_sourceDir.getText() != null && dp_start.getValue() != null && dp_end.getValue() != null) {
             if (dp_start.getValue().isBefore(dp_end.getValue()) || dp_start.getValue().isEqual(dp_end.getValue())) {
-                List<DirEntry> list = new ArrayList<>();
-                TransferFileUtil.getDir(new File(txt_sourceDir.getText()), list, pattern, dp_start.getValue(),
-                        dp_end.getValue());
-                if (Objects.nonNull(list)) {
-                    Collections.sort(list);
-                    fileList = new ArrayList<>();
-                    for (DirEntry entry : list) {
-                        fileList.add(new File(entry.getDirPath()));
-                    }
-                    loadWaitingController();
-                }
+                dp_start.hide();
+                dp_end.hide();
+                Platform.runLater(this::scanDateDirectoriesInBackground);
             }
         }
+    }
+
+    private void scanDateDirectoriesInBackground() {
+        final String sourcePath = txt_sourceDir.getText();
+        final var startDate = dp_start.getValue();
+        final var endDate = dp_end.getValue();
+
+        hbox_6.setDisable(true);
+        lb_filescount.setText("正在扫描日期目录");
+        lb_fileslength.setText("请稍候");
+        setDateInputsDisabled(true);
+
+        Task<List<File>> scanTask = new Task<>() {
+            @Override
+            protected List<File> call() {
+                List<DirEntry> list = new ArrayList<>();
+                TransferFileUtil.getDir(new File(sourcePath), list, pattern, startDate, endDate);
+                Collections.sort(list);
+
+                List<File> matchedFiles = new ArrayList<>();
+                for (DirEntry entry : list) {
+                    matchedFiles.add(new File(entry.getDirPath()));
+                }
+                return matchedFiles;
+            }
+        };
+
+        WaitingController waitingController = showWaitingDialog("正在扫描日期文件夹，请稍候...");
+        scanTask.setOnSucceeded(event -> {
+            closeWaitingDialog(waitingController);
+            fileList = scanTask.getValue();
+            lb_filescount.setText("转移中统计");
+            lb_fileslength.setText("找到 " + fileList.size() + " 个日期目录");
+            hbox_6.setDisable(fileList.isEmpty());
+            setDateInputsDisabled(false);
+        });
+        scanTask.setOnFailed(event -> {
+            closeWaitingDialog(waitingController);
+            log.error("Date directory scan failed", scanTask.getException());
+            lb_filescount.setText("扫描失败");
+            lb_fileslength.setText("请检查日志");
+            hbox_6.setDisable(true);
+            setDateInputsDisabled(false);
+        });
+        scanTask.setOnCancelled(event -> {
+            closeWaitingDialog(waitingController);
+            lb_filescount.setText("扫描已取消");
+            lb_fileslength.setText("");
+            hbox_6.setDisable(true);
+            setDateInputsDisabled(false);
+        });
+
+        Thread t = new Thread(scanTask);
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private WaitingController showWaitingDialog(String message) {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(
+                    getClass().getResource("/com/protoss/tansfertool/fxml/wating-view.fxml"));
+            fxmlLoader.load();
+            WaitingController controller = fxmlLoader.getController();
+            controller.prepare(primaryStage, message);
+            controller.activateWating();
+            return controller;
+        } catch (IOException e) {
+            log.error("Error loading waiting view", e);
+            return null;
+        }
+    }
+
+    private void closeWaitingDialog(WaitingController controller) {
+        if (controller != null && controller.getDialogStage() != null) {
+            controller.cancelWating();
+        }
+    }
+
+    private void setDateInputsDisabled(boolean disabled) {
+        dp_start.setDisable(disabled);
+        dp_end.setDisable(disabled);
+        setDatePickerEditorStyle(dp_start, disabled);
+        setDatePickerEditorStyle(dp_end, disabled);
     }
 
     private void clearDateFilters() {
@@ -357,33 +444,28 @@ public class TransferToolController implements Initializable {
         hbox_6.setDisable(true);
     }
 
-    private void loadWaitingController() {
-        if (fileList == null || fileList.isEmpty()) {
-            return;
-        }
-        try {
-            FXMLLoader fxmlLoader = new FXMLLoader(
-                    getClass().getResource("/com/protoss/tansfertool/fxml/wating-view.fxml"));
-            fxmlLoader.load();
-            WaitingController controller = fxmlLoader.getController();
-            CountDirFilesTask task = new CountDirFilesTask(fileList);
-            task.setFilterPattern(pattern);
-            controller.setPrimaryStage(task, primaryStage, lb_fileslength, lb_filescount, hbox_6);
-            controller.activateWating();
-        } catch (IOException e) {
-            log.error("Error loading waiting view", e);
-        }
+    private void prepareTransferWithoutPrecount() {
+        lb_filescount.setText("转移中统计");
+        lb_fileslength.setText("转移中统计");
+        hbox_6.setDisable(false);
     }
 
     private void setupProgressBar() {
         btn_start.setDisable(true);
         btn_pause.setDisable(false);
         btn_resume.setDisable(true);
+        clearRuntimeMetricBindings();
         progressBar.progressProperty().unbind();
         lb_percent.textProperty().unbind();
         progressBar.setProgress(0.0f);
         progressBar.progressProperty().bind(task.progressProperty());
         lb_percent.textProperty().bind(task.messageProperty());
+        lb_transferredCount.textProperty().bind(task.transferredFilesTextProperty());
+        lb_transferredSize.textProperty().bind(task.transferredSizeTextProperty());
+        lb_speed.textProperty().bind(task.speedTextProperty());
+        lb_elapsed.textProperty().bind(task.elapsedTextProperty());
+        lb_currentPath.textProperty().bind(task.currentPathTextProperty());
+        lb_errorSkipCount.textProperty().bind(task.errorSkipTextProperty());
         setDisabled(true);
     }
 
@@ -401,7 +483,30 @@ public class TransferToolController implements Initializable {
         btn_start.setDisable(false);
         btn_pause.setDisable(true);
         btn_resume.setDisable(true);
+        clearRuntimeMetricBindings();
         setDisabled(false);
+    }
+
+    private void clearRuntimeMetricBindings() {
+        if (lb_transferredCount != null) {
+            lb_transferredCount.textProperty().unbind();
+            lb_transferredSize.textProperty().unbind();
+            lb_speed.textProperty().unbind();
+            lb_elapsed.textProperty().unbind();
+            lb_currentPath.textProperty().unbind();
+            lb_errorSkipCount.textProperty().unbind();
+        }
+    }
+
+    private long parseCount(String text) {
+        if (text == null) {
+            return 0L;
+        }
+        String digits = text.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) {
+            return 0L;
+        }
+        return Convert.toLong(digits, 0L);
     }
 
     // 定时转移相关组件
