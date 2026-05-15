@@ -77,6 +77,10 @@ public class WaitingController implements Initializable {
         }
         Scene scene = new Scene(vboxPane);
         scene.setFill(null);
+        var cssUrl = getClass().getResource("/com/protoss/tansfertool/styles/modern-styles.css");
+        if (cssUrl != null) {
+            scene.getStylesheets().add(cssUrl.toExternalForm());
+        }
         dialogStage = new Stage();
         dialogStage.setScene(scene);
         dialogStage.initOwner(primaryStage);

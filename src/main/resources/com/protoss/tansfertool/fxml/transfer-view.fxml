@@ -3,7 +3,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <TabPane prefHeight="720.0" prefWidth="900.0"
@@ -24,11 +23,14 @@
             <BorderPane fx:id="rootPane" styleClass="content-pane">
                <center>
                   <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
-                     <VBox spacing="16" styleClass="main-container">
+                     <VBox spacing="14" styleClass="main-container">
                         <!-- 路径配置卡片 -->
                         <VBox fx:id="vbox_paths" styleClass="card-section">
-                           <Label text="路径设置" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
-                           <GridPane hgap="10" vgap="12">
+                           <VBox spacing="3">
+                              <Label text="路径设置" styleClass="section-title"/>
+                              <Label text="选择源目录和目标目录后再配置转移规则" styleClass="section-subtitle"/>
+                           </VBox>
+                           <GridPane hgap="10" vgap="12" styleClass="field-row">
                               <columnConstraints>
                                  <ColumnConstraints hgrow="NEVER" minWidth="70"/>
                                  <ColumnConstraints hgrow="ALWAYS"/>
@@ -53,13 +55,16 @@
 
                         <!-- 基本配置卡片 -->
                         <VBox styleClass="card-section">
-                            <Label text="任务配置" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                            <VBox spacing="3">
+                                <Label text="任务配置" styleClass="section-title"/>
+                                <Label text="设置转移动作和并发线程数" styleClass="section-subtitle"/>
+                            </VBox>
                             <HBox fx:id="hbox_3" spacing="16" alignment="CENTER_LEFT">
-                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                     <Label text="转移策略" styleClass="input-label"/>
                                     <ComboBox fx:id="box_strategy" prefWidth="120" styleClass="modern-combo-box"/>
                                 </VBox>
-                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                     <Label text="线程并发数" styleClass="input-label"/>
                                     <TextField fx:id="txt_threads" text="8" styleClass="modern-text-field,numeric-field"/>
                                 </VBox>
@@ -70,7 +75,10 @@
                         <HBox spacing="16">
                            <!-- 压缩设置 -->
                            <VBox fx:id="hbox_4" styleClass="card-section" HBox.hgrow="ALWAYS" disable="true" spacing="10">
-                               <Label text="图像压缩" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                               <VBox spacing="3">
+                                  <Label text="图像压缩" styleClass="section-title"/>
+                                  <Label text="可选 JPEG2000 无损压缩" styleClass="section-subtitle"/>
+                               </VBox>
                                <CheckBox fx:id="cb_compressed" text="启用无损压缩 (JPEG2000)" styleClass="modern-checkbox"/>
                                
                                <HBox fx:id="hbox_7" spacing="10" alignment="CENTER_LEFT" disable="true">
@@ -86,7 +94,10 @@
 
                            <!-- 筛选设置 -->
                            <VBox fx:id="hbox_5" styleClass="card-section" HBox.hgrow="ALWAYS" disable="true" spacing="10">
-                               <Label text="文件筛选" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                               <VBox spacing="3">
+                                  <Label text="文件筛选" styleClass="section-title"/>
+                                  <Label text="限定日期范围或直接处理全部文件" styleClass="section-subtitle"/>
+                               </VBox>
                                <HBox spacing="12">
                                    <RadioButton fx:id="radio_timefilter" text="时间范围" selected="true" styleClass="modern-radio-button" toggleGroup="$filterGroup"/>
                                    <RadioButton fx:id="radio_all" text="全部文件" styleClass="modern-radio-button" toggleGroup="$filterGroup"/>
@@ -102,21 +113,12 @@
                            </VBox>
                         </HBox>
 
-                        <!-- 统计卡片 -->
-                        <HBox styleClass="stats-group" alignment="CENTER" spacing="30">
-                           <VBox styleClass="stat-item">
-                              <Label text="扫描文件数" styleClass="stat-label"/>
-                              <Label fx:id="lb_filescount" text="0" styleClass="stat-value"/>
-                           </VBox>
-                           <Separator orientation="VERTICAL" />
-                           <VBox styleClass="stat-item">
-                              <Label text="总大小" styleClass="stat-label"/>
-                              <Label fx:id="lb_fileslength" text="0 B" styleClass="stat-value"/>
-                           </VBox>
-                        </HBox>
-
                         <!-- 运行进度指标 -->
                         <VBox styleClass="runtime-stats-section" spacing="10">
+                           <VBox spacing="3">
+                              <Label text="运行监控" styleClass="section-title"/>
+                              <Label text="实时展示转移进度、速度和异常统计" styleClass="section-subtitle"/>
+                           </VBox>
                            <GridPane hgap="18" vgap="10">
                               <columnConstraints>
                                  <ColumnConstraints percentWidth="20"/>
@@ -182,11 +184,14 @@
             <BorderPane fx:id="rootPane1" styleClass="content-pane">
                <center>
                   <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
-                      <VBox spacing="16" styleClass="main-container">
+                      <VBox spacing="14" styleClass="main-container">
                           <!-- 定时路径配置 -->
                           <VBox styleClass="card-section">
-                              <Label text="定时任务路径" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
-                              <GridPane hgap="10" vgap="12">
+                              <VBox spacing="3">
+                                  <Label text="定时任务路径" styleClass="section-title"/>
+                                  <Label text="配置定时扫描目录和转移目标" styleClass="section-subtitle"/>
+                              </VBox>
+                              <GridPane hgap="10" vgap="12" styleClass="field-row">
                                   <columnConstraints>
                                       <ColumnConstraints hgrow="NEVER" minWidth="70"/>
                                       <ColumnConstraints hgrow="ALWAYS"/>
@@ -209,25 +214,28 @@
 
                           <!-- 调度配置 -->
                           <VBox styleClass="card-section">
-                              <Label text="调度设置" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                              <VBox spacing="3">
+                                  <Label text="调度设置" styleClass="section-title"/>
+                                  <Label text="设定启动时间、执行间隔和转移策略" styleClass="section-subtitle"/>
+                              </VBox>
                               <HBox spacing="16" alignment="CENTER_LEFT">
-                                  <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                  <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                       <Label text="启动时间 (HH:mm)" styleClass="input-label"/>
                                       <TextField fx:id="txt_startTime" promptText="立即启动" styleClass="modern-text-field"/>
                                   </VBox>
-                                  <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                  <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                       <Label text="执行间隔 (分钟)" styleClass="input-label"/>
                                       <TextField fx:id="txt_interval" text="60" styleClass="modern-text-field,numeric-field"/>
                                   </VBox>
-                                  <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                  <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                       <Label text="转移N天前数据" styleClass="input-label"/>
                                       <TextField fx:id="txt_daysAgo" text="0" promptText="0=今天" styleClass="modern-text-field,numeric-field"/>
                                   </VBox>
-                                  <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                  <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                       <Label text="转移策略" styleClass="input-label"/>
                                       <ComboBox fx:id="box_schedStrategy" prefWidth="120" styleClass="modern-combo-box"/>
                                   </VBox>
-                                  <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                  <VBox spacing="6" styleClass="field-group" HBox.hgrow="ALWAYS">
                                       <Label text="压缩模式" styleClass="input-label"/>
                                       <ComboBox fx:id="box_schedCompress" prefWidth="120" styleClass="modern-combo-box"/>
                                   </VBox>
@@ -236,10 +244,13 @@
 
                           <!-- 任务状态与日志 -->
                           <VBox styleClass="card-section" VBox.vgrow="ALWAYS">
-                              <Label text="任务状态" style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1f2937;"/>
+                              <VBox spacing="3">
+                                  <Label text="任务状态" styleClass="section-title"/>
+                                  <Label text="查看定时任务状态和运行日志" styleClass="section-subtitle"/>
+                              </VBox>
                               <HBox spacing="20" alignment="CENTER_LEFT">
                                   <Label text="当前状态：" styleClass="input-label"/>
-                                  <Label fx:id="lb_schedStatus" text="未启动" style="-fx-text-fill: #6b7280; -fx-font-weight: bold;"/>
+                                  <Label fx:id="lb_schedStatus" text="未启动" styleClass="status-pill"/>
                                   <Region HBox.hgrow="ALWAYS"/>
                                   <Label text="上次运行：" styleClass="input-label"/>
                                   <Label fx:id="lb_lastRun" text="--" style="-fx-text-fill: #111827;"/>

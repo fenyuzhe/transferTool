@@ -70,10 +70,6 @@ public class TransferToolController implements Initializable {
     @FXML
     private ProgressBar progressBar;
     @FXML
-    private Label lb_fileslength;
-    @FXML
-    private Label lb_filescount;
-    @FXML
     private Label lb_percent;
     @FXML
     private Label lb_transferredCount;
@@ -208,7 +204,7 @@ public class TransferToolController implements Initializable {
 
             task = new TransferTask(
                     compressMode,
-                    parseCount(lb_filescount.getText()),
+                    0L,
                     fileList,
                     txt_sourceDir.getText(),
                     txt_desDir.getText(),
@@ -222,9 +218,9 @@ public class TransferToolController implements Initializable {
             task.setOnSucceeded(this::handleTaskCompletion);
             task.setOnFailed(event -> {
                 log.error("Transfer task failed", task.getException());
-                resetUIAfterCompletion();
+                resetUIAfterCompletion(false);
             });
-            task.setOnCancelled(event -> resetUIAfterCompletion());
+            task.setOnCancelled(event -> resetUIAfterCompletion(false));
             Thread t = new Thread(task);
             t.setDaemon(true);
             t.start();
@@ -320,8 +316,6 @@ public class TransferToolController implements Initializable {
     }
 
     private void handleTimeFilterToggle() {
-        lb_filescount.setText("");
-        lb_fileslength.setText("");
         dp_start.setDisable(false);
         dp_end.setDisable(false);
         setDatePickerEditorStyle(dp_start, false);
@@ -355,8 +349,6 @@ public class TransferToolController implements Initializable {
         final var endDate = dp_end.getValue();
 
         hbox_6.setDisable(true);
-        lb_filescount.setText("正在扫描日期目录");
-        lb_fileslength.setText("请稍候");
         setDateInputsDisabled(true);
 
         Task<List<File>> scanTask = new Task<>() {
@@ -378,23 +370,17 @@ public class TransferToolController implements Initializable {
         scanTask.setOnSucceeded(event -> {
             closeWaitingDialog(waitingController);
             fileList = scanTask.getValue();
-            lb_filescount.setText("转移中统计");
-            lb_fileslength.setText("找到 " + fileList.size() + " 个日期目录");
             hbox_6.setDisable(fileList.isEmpty());
             setDateInputsDisabled(false);
         });
         scanTask.setOnFailed(event -> {
             closeWaitingDialog(waitingController);
             log.error("Date directory scan failed", scanTask.getException());
-            lb_filescount.setText("扫描失败");
-            lb_fileslength.setText("请检查日志");
             hbox_6.setDisable(true);
             setDateInputsDisabled(false);
         });
         scanTask.setOnCancelled(event -> {
             closeWaitingDialog(waitingController);
-            lb_filescount.setText("扫描已取消");
-            lb_fileslength.setText("");
             hbox_6.setDisable(true);
             setDateInputsDisabled(false);
         });
@@ -435,8 +421,6 @@ public class TransferToolController implements Initializable {
     private void clearDateFilters() {
         dp_start.setValue(null);
         dp_end.setValue(null);
-        lb_filescount.setText("");
-        lb_fileslength.setText("");
         dp_start.setDisable(true);
         dp_end.setDisable(true);
         setDatePickerEditorStyle(dp_start, true);
@@ -445,8 +429,6 @@ public class TransferToolController implements Initializable {
     }
 
     private void prepareTransferWithoutPrecount() {
-        lb_filescount.setText("转移中统计");
-        lb_fileslength.setText("转移中统计");
         hbox_6.setDisable(false);
     }
 
@@ -472,19 +454,32 @@ public class TransferToolController implements Initializable {
     private void handleTaskCompletion(WorkerStateEvent event) {
         try {
             if (task.get() == 1) {
-                resetUIAfterCompletion();
+                resetUIAfterCompletion(true);
             }
         } catch (Exception ex) {
             log.error("Error on task completion", ex);
         }
     }
 
-    private void resetUIAfterCompletion() {
+    private void resetUIAfterCompletion(boolean completed) {
         btn_start.setDisable(false);
         btn_pause.setDisable(true);
         btn_resume.setDisable(true);
+        clearProgressBindings(completed);
         clearRuntimeMetricBindings();
         setDisabled(false);
+    }
+
+    private void clearProgressBindings(boolean completed) {
+        progressBar.progressProperty().unbind();
+        lb_percent.textProperty().unbind();
+        if (completed) {
+            progressBar.setProgress(1.0);
+            lb_percent.setText("100%");
+        } else {
+            progressBar.setProgress(0.0);
+            lb_percent.setText("0%");
+        }
     }
 
     private void clearRuntimeMetricBindings() {
@@ -496,17 +491,6 @@ public class TransferToolController implements Initializable {
             lb_currentPath.textProperty().unbind();
             lb_errorSkipCount.textProperty().unbind();
         }
-    }
-
-    private long parseCount(String text) {
-        if (text == null) {
-            return 0L;
-        }
-        String digits = text.replaceAll("[^0-9]", "");
-        if (digits.isEmpty()) {
-            return 0L;
-        }
-        return Convert.toLong(digits, 0L);
     }
 
     // 定时转移相关组件
@@ -858,19 +842,19 @@ public class TransferToolController implements Initializable {
             return;
         if (disabled) {
             dp.getEditor().setStyle(
-                    "-fx-background-color: #b8bfc9;" +
-                            "-fx-text-fill: #111827;" +
-                            "-fx-border-color: #a0a8b4;" +
-                            "-fx-border-radius: 4;" +
-                            "-fx-background-radius: 4;" +
+                    "-fx-background-color: #edf1f6;" +
+                            "-fx-text-fill: #667085;" +
+                            "-fx-border-color: #d8dee8;" +
+                            "-fx-border-radius: 6;" +
+                            "-fx-background-radius: 6;" +
                             "-fx-opacity: 1.0;");
         } else {
             dp.getEditor().setStyle(
-                    "-fx-background-color: #f9fafb;" +
-                            "-fx-text-fill: #111827;" +
-                            "-fx-border-color: #d1d5db;" +
-                            "-fx-border-radius: 4;" +
-                            "-fx-background-radius: 4;" +
+                    "-fx-background-color: #f9fbfd;" +
+                            "-fx-text-fill: #172033;" +
+                            "-fx-border-color: #cfd8e5;" +
+                            "-fx-border-radius: 6;" +
+                            "-fx-background-radius: 6;" +
                             "-fx-opacity: 1.0;");
         }
     }
