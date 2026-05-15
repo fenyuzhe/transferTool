@@ -1,2 +1,2 @@
-# transferTool
-javaFX dicom transfer tool
+# Protoss Toolkit
+JavaFX DICOM toolkit

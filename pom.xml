@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.protoss</groupId>
-    <artifactId>transferTool</artifactId>
+    <artifactId>protoss-toolkit</artifactId>
     <version>1.2</version>
-    <name>transferTool</name>
+    <name>protoss-toolkit</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -80,7 +80,7 @@
             <artifactId>javafx-graphics</artifactId>
             <version>21.0.4</version>
         </dependency>
-        <!-- 图标库 -->
+        <!-- 鍥炬爣搴?-->
         <dependency>
             <groupId>org.kordamp.ikonli</groupId>
             <artifactId>ikonli-javafx</artifactId>
@@ -216,7 +216,7 @@
                     <target>17</target>
                 </configuration>
             </plugin>
-            <!--      配置打包，并配置MainClass， 但不将依赖包打包，会出现找不到依赖的异常    -->
+            <!--      閰嶇疆鎵撳寘锛屽苟閰嶇疆MainClass锛?浣嗕笉灏嗕緷璧栧寘鎵撳寘锛屼細鍑虹幇鎵句笉鍒颁緷璧栫殑寮傚父    -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -224,9 +224,9 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <!--   MANIFEST.MF 中 Class-Path -->
+                            <!--   MANIFEST.MF 涓?Class-Path -->
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>com.protoss.tansfertool.Main</mainClass>
+                            <mainClass>com.protoss.toolkit.Main</mainClass>
                         </manifest>
                         <manifestEntries>
                             <Implementation-Vendor>Sun Microsystems, Inc.</Implementation-Vendor>
@@ -236,7 +236,7 @@
                     </archive>
                 </configuration>
             </plugin>
-            <!--      配置依赖包      -->
+            <!--      閰嶇疆渚濊禆鍖?     -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -248,7 +248,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <!--              将依赖包打包至target下的lib目录              -->
+                            <!--              灏嗕緷璧栧寘鎵撳寘鑷硉arget涓嬬殑lib鐩綍              -->
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                         </configuration>
                     </execution>

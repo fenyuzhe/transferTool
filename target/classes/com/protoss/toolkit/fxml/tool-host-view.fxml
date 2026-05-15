@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane prefHeight="780.0" prefWidth="1180.0"
+            styleClass="app-shell"
+            xmlns="http://javafx.com/javafx/19"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.protoss.toolkit.controller.ToolHostController">
+    <left>
+        <VBox prefWidth="250.0" styleClass="sidebar">
+            <padding>
+                <Insets top="22" right="16" bottom="18" left="16"/>
+            </padding>
+            <VBox spacing="4" styleClass="brand-block">
+                <Label text="Protoss Toolkit" styleClass="brand-title"/>
+                <Label text="一站式工具工作台" styleClass="brand-subtitle"/>
+            </VBox>
+            <Label text="工具" styleClass="sidebar-section-label"/>
+            <VBox fx:id="toolNavigation" spacing="8"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <VBox spacing="6" styleClass="sidebar-footnote">
+                <Label text="添加新工具" styleClass="sidebar-footnote-title"/>
+                <Label text="实现 ToolModule 并加入 ToolRegistry，即可进入工作台。" wrapText="true" styleClass="sidebar-footnote-copy"/>
+            </VBox>
+        </VBox>
+    </left>
+    <center>
+        <BorderPane styleClass="workspace">
+            <top>
+                <HBox alignment="CENTER_LEFT" spacing="14" styleClass="workspace-header">
+                    <VBox spacing="4">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label fx:id="toolCategory" text="工具" styleClass="tool-category"/>
+                            <Label fx:id="toolName" text="工具名称" styleClass="workspace-title"/>
+                        </HBox>
+                        <Label fx:id="toolSubtitle" text="选择左侧工具开始工作" styleClass="workspace-subtitle"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                </HBox>
+            </top>
+            <center>
+                <StackPane fx:id="toolContent" styleClass="tool-content"/>
+            </center>
+        </BorderPane>
+    </center>
+</BorderPane>

@@ -23,5 +23,6 @@
 hs_err_pid*
 replay_pid*
 
+protoss-toolkit/jdk-17.0.12/
 transferTool/
-target/
+target/protoss-toolkit/jdk-17.0.12/
