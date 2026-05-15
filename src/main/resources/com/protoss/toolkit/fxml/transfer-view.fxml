@@ -166,6 +166,9 @@
                            <Button fx:id="btn_resume" text="继续" styleClass="modern-button,info-button">
                               <graphic><FontIcon iconLiteral="fas-play" iconSize="16"/></graphic>
                            </Button>
+                           <Button fx:id="btn_saveSettings" text="保存设置" styleClass="modern-button,primary-button">
+                              <graphic><FontIcon iconLiteral="fas-save" iconSize="16"/></graphic>
+                           </Button>
                         </HBox>
                      </VBox>
                   </ScrollPane>
@@ -267,6 +270,9 @@
                               </Button>
                               <Button fx:id="btn_stopSched" text="停止任务" disable="true" styleClass="modern-button,warning-button">
                                   <graphic><FontIcon iconLiteral="fas-stop-circle" iconSize="16"/></graphic>
+                              </Button>
+                              <Button fx:id="btn_saveSchedSettings" text="保存设置" styleClass="modern-button,primary-button">
+                                  <graphic><FontIcon iconLiteral="fas-save" iconSize="16"/></graphic>
                               </Button>
                           </HBox>
                       </VBox>

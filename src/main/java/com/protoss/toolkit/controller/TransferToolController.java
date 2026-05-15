@@ -20,11 +20,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,6 +37,10 @@ public class TransferToolController implements Initializable, StageAware {
     private static final Logger log = LoggerFactory.getLogger(TransferToolController.class);
     private static final String IMAGEIO_MODE = "imageio";
     private static final String OPENCV_MODE = "opencv";
+    private static final Path SETTINGS_PATH = Path.of(
+            System.getProperty("user.home"),
+            ".protoss-toolkit",
+            "image-transfer.properties");
 
     @FXML
     private BorderPane rootPane;
@@ -83,6 +90,8 @@ public class TransferToolController implements Initializable, StageAware {
     private Button btn_pause;
     @FXML
     private Button btn_resume;
+    @FXML
+    private Button btn_saveSettings;
     @FXML
     private Button btn_sourceDir;
     @FXML
@@ -140,6 +149,8 @@ public class TransferToolController implements Initializable, StageAware {
     private Button btn_startSched;
     @FXML
     private Button btn_stopSched;
+    @FXML
+    private Button btn_saveSchedSettings;
 
     private java.util.concurrent.ScheduledExecutorService scheduler;
     private java.util.concurrent.ScheduledFuture<?> scheduledTask;
@@ -161,6 +172,7 @@ public class TransferToolController implements Initializable, StageAware {
         initializeControls();
         initializeEventHandlers();
         initializeSchedControls();
+        loadSavedSettings();
     }
 
     private void initializeUI() {
@@ -214,6 +226,7 @@ public class TransferToolController implements Initializable, StageAware {
         btn_start.setOnAction(event -> startTransfer());
         btn_pause.setOnAction(event -> pauseTransfer());
         btn_resume.setOnAction(event -> resumeTransfer());
+        btn_saveSettings.setOnAction(event -> saveManualSettings());
         cb_compressed.setOnAction(event -> handleCompressionToggle());
         radio_timefilter.setOnAction(event -> handleTimeFilterToggle());
         radio_all.setOnAction(event -> handleAllFilesToggle());
@@ -534,6 +547,151 @@ public class TransferToolController implements Initializable, StageAware {
         }));
         btn_startSched.setOnAction(e -> startSchedule());
         btn_stopSched.setOnAction(e -> stopSchedule());
+        btn_saveSchedSettings.setOnAction(e -> saveScheduleSettings());
+    }
+
+    private void loadSavedSettings() {
+        Properties settings = loadSettings();
+        applyManualSettings(settings);
+        applyScheduleSettings(settings);
+    }
+
+    private Properties loadSettings() {
+        Properties settings = new Properties();
+        if (!Files.exists(SETTINGS_PATH)) {
+            return settings;
+        }
+        try (InputStream input = Files.newInputStream(SETTINGS_PATH)) {
+            settings.load(input);
+        } catch (IOException e) {
+            log.warn("Failed to load image transfer settings: {}", SETTINGS_PATH, e);
+        }
+        return settings;
+    }
+
+    private void applyManualSettings(Properties settings) {
+        txt_sourceDir.setText(settings.getProperty("manual.sourceDir", ""));
+        txt_desDir.setText(settings.getProperty("manual.targetDir", ""));
+        selectComboValue(box_strategy, settings.getProperty("manual.strategy", "复制"));
+        txt_threads.setText(settings.getProperty("manual.threads", "8"));
+
+        boolean compressed = Boolean.parseBoolean(settings.getProperty("manual.compressed", "false"));
+        cb_compressed.setSelected(compressed);
+        handleCompressionToggle();
+        String compressionMode = settings.getProperty("manual.compressionMode", IMAGEIO_MODE);
+        if (compressed) {
+            radio_imageio.setSelected(IMAGEIO_MODE.equals(compressionMode));
+            radio_opencv.setSelected(OPENCV_MODE.equals(compressionMode));
+        }
+        txt_filtersize.setText(settings.getProperty("manual.filterSizeKb", ""));
+
+        String filterMode = settings.getProperty("manual.filterMode", "time");
+        if ("all".equals(filterMode)) {
+            radio_all.setSelected(true);
+            handleAllFilesToggle();
+        } else {
+            radio_timefilter.setSelected(true);
+            handleTimeFilterToggle();
+            dp_start.setValue(parseDate(settings.getProperty("manual.startDate")));
+            dp_end.setValue(parseDate(settings.getProperty("manual.endDate")));
+        }
+
+        if (!txt_sourceDir.getText().isBlank()) {
+            hbox_4.setDisable(false);
+            hbox_5.setDisable(false);
+        }
+    }
+
+    private void applyScheduleSettings(Properties settings) {
+        txt_schedSource.setText(settings.getProperty("schedule.sourceDir", ""));
+        txt_schedTarget.setText(settings.getProperty("schedule.targetDir", ""));
+        txt_startTime.setText(settings.getProperty("schedule.startTime", ""));
+        txt_interval.setText(settings.getProperty("schedule.intervalMinutes", "60"));
+        txt_daysAgo.setText(settings.getProperty("schedule.daysAgo", "0"));
+        selectComboValue(box_schedStrategy, settings.getProperty("schedule.strategy", "复制"));
+        selectComboValue(box_schedCompress, settings.getProperty("schedule.compression", "不压缩"));
+    }
+
+    private void saveManualSettings() {
+        Properties settings = loadSettings();
+        settings.setProperty("manual.sourceDir", txt_sourceDir.getText());
+        settings.setProperty("manual.targetDir", txt_desDir.getText());
+        settings.setProperty("manual.strategy", valueOrDefault(box_strategy.getSelectionModel().getSelectedItem(), "复制"));
+        settings.setProperty("manual.threads", valueOrDefault(txt_threads.getText(), "8"));
+        settings.setProperty("manual.compressed", Boolean.toString(cb_compressed.isSelected()));
+        settings.setProperty("manual.compressionMode", radio_opencv.isSelected() ? OPENCV_MODE : IMAGEIO_MODE);
+        settings.setProperty("manual.filterSizeKb", txt_filtersize.getText());
+        settings.setProperty("manual.filterMode", radio_all.isSelected() ? "all" : "time");
+        settings.setProperty("manual.startDate", dp_start.getValue() == null ? "" : dp_start.getValue().toString());
+        settings.setProperty("manual.endDate", dp_end.getValue() == null ? "" : dp_end.getValue().toString());
+        saveSettings(settings, "手动转移设置已保存");
+    }
+
+    private void saveScheduleSettings() {
+        Properties settings = loadSettings();
+        settings.setProperty("schedule.sourceDir", txt_schedSource.getText());
+        settings.setProperty("schedule.targetDir", txt_schedTarget.getText());
+        settings.setProperty("schedule.startTime", txt_startTime.getText());
+        settings.setProperty("schedule.intervalMinutes", valueOrDefault(txt_interval.getText(), "60"));
+        settings.setProperty("schedule.daysAgo", valueOrDefault(txt_daysAgo.getText(), "0"));
+        settings.setProperty("schedule.strategy", valueOrDefault(box_schedStrategy.getSelectionModel().getSelectedItem(), "复制"));
+        settings.setProperty("schedule.compression", valueOrDefault(box_schedCompress.getSelectionModel().getSelectedItem(), "不压缩"));
+        saveSettings(settings, "定时转移设置已保存");
+    }
+
+    private void saveSettings(Properties settings, String successMessage) {
+        try {
+            Files.createDirectories(SETTINGS_PATH.getParent());
+            try (OutputStream output = Files.newOutputStream(SETTINGS_PATH)) {
+                settings.store(output, "Protoss Toolkit image transfer settings");
+            }
+            showInfo(successMessage);
+        } catch (IOException e) {
+            log.error("Failed to save image transfer settings: {}", SETTINGS_PATH, e);
+            showError("保存设置失败：" + e.getMessage());
+        }
+    }
+
+    private void selectComboValue(ComboBox<String> comboBox, String value) {
+        if (value != null && comboBox.getItems().contains(value)) {
+            comboBox.getSelectionModel().select(value);
+        }
+    }
+
+    private LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (RuntimeException e) {
+            log.warn("Invalid saved date: {}", value);
+            return null;
+        }
+    }
+
+    private String valueOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private void showInfo(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
+        alert.setTitle("保存设置");
+        alert.setHeaderText(null);
+        if (primaryStage != null) {
+            alert.initOwner(primaryStage);
+        }
+        alert.showAndWait();
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
+        alert.setTitle("保存设置");
+        alert.setHeaderText(null);
+        if (primaryStage != null) {
+            alert.initOwner(primaryStage);
+        }
+        alert.showAndWait();
     }
 
     private void startSchedule() {
