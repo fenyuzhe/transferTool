@@ -1,7 +1,6 @@
 package com.protoss.toolkit.codec;
 
 import com.protoss.toolkit.dcm4chex.UIDsx;
-import org.dcm4cheri.imageio.plugins.DcmImageReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import gnu.getopt.Getopt;
@@ -14,17 +13,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.Iterator;
 import java.util.ResourceBundle;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
 import org.dcm4che.data.Dataset;
+import org.dcm4che.data.DcmObjectFactory;
 import org.dcm4che.data.DcmParser;
 import org.dcm4che.data.DcmParserFactory;
 import org.dcm4che.data.FileFormat;
+import org.dcm4che.dict.Tags;
 import org.dcm4che.dict.UIDs;
-import org.dcm4che.imageio.plugins.DcmMetadata;
 
 import static com.protoss.toolkit.util.TransferFileUtil.copyFile;
 
@@ -142,134 +138,42 @@ public class TranscoderMain {
 //    }
 
     public Dataset fileToDataset(File f) {
-        BufferedInputStream in = null;
-        FileFormat ff = null;
-        DcmParser parser = null;
-        Dataset ds = null;
-
-        try {
-            in = new BufferedInputStream(new FileInputStream(f));
+        FileFormat ff;
+        try (BufferedInputStream in = new BufferedInputStream(new FileInputStream(f))) {
+            DcmParser parser = DcmParserFactory.getInstance().newDcmParser(in);
+            ff = parser.detectFileFormat();
         } catch (IOException ioe) {
-            System.out.println("Can't read file: " + f.getPath());
+            log.warn("Can't detect DICOM file format for file: {}", f.getPath(), ioe);
             return null;
         }
 
+        Dataset ds = DcmObjectFactory.getInstance().newDataset();
         try {
-            parser = DcmParserFactory.getInstance().newDcmParser(in);
-            try {
-                ff = parser.detectFileFormat();
-            } catch (Exception ioe) {
-                System.out.println("Can't detect DICOM file format for file: " + f.getPath());
-                // Try next file
-                return null;
-            }
-
-            ImageInputStream iis = null;
-            try {
-                iis = ImageIO.createImageInputStream(f);
-                Iterator iter = ImageIO.getImageReadersByFormatName("DICOM");
-                ImageReader reader = null;
-                while (iter.hasNext()) {
-                    ImageReader it = (ImageReader) iter.next();
-                    if (it instanceof DcmImageReader) {
-                        reader = it;
-                    }
-                }
-                reader.setInput(iis, false);
-                ds = ((DcmMetadata) reader.getStreamMetadata()).getDataset();
-            } catch (IOException e) {
-                log.error(e.getMessage());
-            } finally {
-                if (iis != null) {
-                    try {
-                        iis.close();
-                    } catch (IOException e) {
-                        log.error(e.getMessage());
-                    }
-                }
-            }
-
-            /*
-            ds = DcmObjectFactory.getInstance().newDataset();
-
-            try {
-            ds.readFile(in, ff, -1);
-            } catch (IOException ioe) {
-            System.out.println("Can't create Dataset for file: " + f.getPath());
-            // Try next file
+            ds.readFile(f, ff, Tags.PixelData);
+        } catch (IOException ioe) {
+            log.warn("Can't create Dataset for file: {}", f.getPath(), ioe);
             return null;
-            }*/
-        } finally {
-            try {
-                in.close();
-            } catch (IOException e) {
-            }
         }
 
         return ds;
     }
 
     public Dataset byteToDataset(byte[] src_byte) {
-        ByteArrayInputStream in = null;
-        FileFormat ff = null;
-        DcmParser parser = null;
-        Dataset ds = null;
-
-        in = new ByteArrayInputStream(src_byte);
-
-        try {
-            parser = DcmParserFactory.getInstance().newDcmParser(in);
-
-            try {
-                ff = parser.detectFileFormat();
-            } catch (Exception ioe) {
-                System.out.println("Can't detect DICOM file format for file: " + src_byte.length);
-                // Try next file
-                return null;
-            }
-
-            ImageInputStream iis = null;
-            try {
-                iis = ImageIO.createImageInputStream(in);
-                Iterator iter = ImageIO.getImageReadersByFormatName("DICOM");
-                ImageReader reader = null;
-                while (iter.hasNext()) {
-                    ImageReader it = (ImageReader) iter.next();
-                    if (it instanceof DcmImageReader) {
-                        reader = it;
-                    }
-                }
-                reader.setInput(iis, false);
-
-                ds = ((DcmMetadata) reader.getStreamMetadata()).getDataset();
-
-            } catch (IOException e) {
-                log.error(e.getMessage());
-            } finally {
-                if (iis != null) {
-                    try {
-                        iis.close();
-                    } catch (IOException e) {
-                        log.error(e.getMessage());
-                    }
-                }
-            }
-
-            /*
-            ds = DcmObjectFactory.getInstance().newDataset();
-
-            try {
-            ds.readFile(in, ff, -1);
-            } catch (IOException ioe) {
-            System.out.println("Can't create Dataset for file: " + f.getPath());
-            // Try next file
+        FileFormat ff;
+        try (ByteArrayInputStream in = new ByteArrayInputStream(src_byte)) {
+            DcmParser parser = DcmParserFactory.getInstance().newDcmParser(in);
+            ff = parser.detectFileFormat();
+        } catch (IOException ioe) {
+            log.warn("Can't detect DICOM file format for byte array: {}", src_byte.length, ioe);
             return null;
-            }*/
-        } finally {
-            try {
-                in.close();
-            } catch (IOException e) {
-            }
+        }
+
+        Dataset ds = DcmObjectFactory.getInstance().newDataset();
+        try (ByteArrayInputStream in = new ByteArrayInputStream(src_byte)) {
+            ds.readFile(in, ff, Tags.PixelData);
+        } catch (IOException ioe) {
+            log.warn("Can't create Dataset for byte array: {}", src_byte.length, ioe);
+            return null;
         }
 
         return ds;

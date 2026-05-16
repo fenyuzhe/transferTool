@@ -166,6 +166,9 @@
                            <Button fx:id="btn_resume" text="继续" styleClass="modern-button,info-button">
                               <graphic><FontIcon iconLiteral="fas-play" iconSize="16"/></graphic>
                            </Button>
+                        </HBox>
+                        <HBox styleClass="button-group" spacing="16" alignment="CENTER">
+                            <padding><Insets top="0" bottom="8"/></padding>
                            <Button fx:id="btn_saveSettings" text="保存设置" styleClass="modern-button,primary-button">
                               <graphic><FontIcon iconLiteral="fas-save" iconSize="16"/></graphic>
                            </Button>

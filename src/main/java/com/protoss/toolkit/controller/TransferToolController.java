@@ -156,6 +156,7 @@ public class TransferToolController implements Initializable, StageAware {
     private java.util.concurrent.ScheduledFuture<?> scheduledTask;
     private volatile ScheduledTransferConfig scheduledConfig;
     private final AtomicBoolean scheduledTransferRunning = new AtomicBoolean(false);
+    private boolean pendingSavedDateScan;
 
     private record ScheduledTransferConfig(
             String sourcePath,
@@ -594,6 +595,7 @@ public class TransferToolController implements Initializable, StageAware {
             handleTimeFilterToggle();
             dp_start.setValue(parseDate(settings.getProperty("manual.startDate")));
             dp_end.setValue(parseDate(settings.getProperty("manual.endDate")));
+            pendingSavedDateScan = canScanDateDirectories();
         }
 
         if (!txt_sourceDir.getText().isBlank()) {
@@ -668,6 +670,14 @@ public class TransferToolController implements Initializable, StageAware {
             log.warn("Invalid saved date: {}", value);
             return null;
         }
+    }
+
+    private boolean canScanDateDirectories() {
+        return txt_sourceDir.getText() != null
+                && !txt_sourceDir.getText().isBlank()
+                && dp_start.getValue() != null
+                && dp_end.getValue() != null
+                && (dp_start.getValue().isBefore(dp_end.getValue()) || dp_start.getValue().isEqual(dp_end.getValue()));
     }
 
     private String valueOrDefault(String value, String fallback) {
@@ -935,6 +945,10 @@ public class TransferToolController implements Initializable, StageAware {
     @Override
     public void setPrimaryStage(Stage stage) {
         this.primaryStage = stage;
+        if (pendingSavedDateScan) {
+            pendingSavedDateScan = false;
+            Platform.runLater(this::scanDateDirectoriesInBackground);
+        }
     }
 
     private void setDisabled(boolean flag) {

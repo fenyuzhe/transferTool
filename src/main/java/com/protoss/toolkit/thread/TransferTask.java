@@ -125,13 +125,7 @@ public class TransferTask extends Task<Integer> {
         log.info("Transfer elapsed: {} ms", System.currentTimeMillis() - startTime);
 
         if (failedCount.get() > 0) {
-            throw new IOException("Transfer failed for " + failedCount.get() + " file(s): " + failedFiles);
-        }
-
-        // 如果是移动策略，且任务顺利完成，进行空文件夹清理
-        if (STRATEGY_MOVE.equals(strategy)) {
-            log.info("开始清理空文件夹...");
-            deleteEmptyDirs(new File(sourceFilePath));
+            log.warn("Transfer completed with {} failed file(s): {}", failedCount.get(), failedFiles);
         }
 
         return 1;
@@ -189,28 +183,32 @@ public class TransferTask extends Task<Integer> {
         }
     }
 
-    private void deleteEmptyDirs(File dir) {
-        if (dir == null || !dir.exists() || !dir.isDirectory()) {
-            return;
-        }
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                if (f.isDirectory()) {
-                    deleteEmptyDirs(f);
-                }
+    private long deleteEmptyParents(Path start, Path sourceRoot) {
+        long deletedCount = 0;
+        Path current = start;
+        while (current != null && current.startsWith(sourceRoot) && !current.equals(sourceRoot)) {
+            if (!Files.isDirectory(current) || !isDirectoryEmpty(current)) {
+                break;
             }
-        }
-        files = dir.listFiles();
-        if (files == null || files.length == 0) {
-            // 不删除根目录
-            if (!dir.getAbsolutePath().equals(sourceFilePath)) {
-                if (dir.delete()) {
-                    log.info("Deleted empty directory: {}", dir.getAbsolutePath());
-                } else {
-                    log.warn("Failed to delete empty directory: {}", dir.getAbsolutePath());
-                }
+            try {
+                Files.deleteIfExists(current);
+                deletedCount++;
+                log.info("删除空文件夹- {}", current);
+            } catch (IOException e) {
+                log.warn("Failed to delete empty directory: {}", current, e);
+                break;
             }
+            current = current.getParent();
+        }
+        return deletedCount;
+    }
+
+    private boolean isDirectoryEmpty(Path dir) {
+        try (var stream = Files.list(dir)) {
+            return stream.findAny().isEmpty();
+        } catch (IOException e) {
+            log.warn("Failed to inspect directory: {}", dir, e);
+            return false;
         }
     }
 
@@ -313,8 +311,9 @@ public class TransferTask extends Task<Integer> {
                 publishRuntimeMetrics(true);
             }
 
-            // 目录的清理工作由 call() 末尾的 deleteEmptyDirs() 统一负责，
-            // 此处不做提前删除，避免多线程场景下的竞态条件。
+            if (STRATEGY_MOVE.equals(strategy) && f.isDirectory()) {
+                deleteEmptyParents(f.toPath().toAbsolutePath().normalize(), sourceRoot);
+            }
         }
 
         private File resolveTargetFile(File sourceFile) throws IOException {
@@ -344,6 +343,7 @@ public class TransferTask extends Task<Integer> {
 
         private void deleteSourceFile(File sourceFile) throws IOException {
             try {
+                log.info("转移完成，开始删除文件-{}",sourceFile.getAbsolutePath());
                 Files.delete(sourceFile.toPath());
             } catch (IOException e) {
                 log.warn("Failed to delete source file after transfer: {}", sourceFile.getAbsolutePath(), e);
@@ -353,7 +353,19 @@ public class TransferTask extends Task<Integer> {
 
         private void recordFailure(File sourceFile, Exception e) {
             failedCount.incrementAndGet();
-            failedFiles.add(sourceFile.getAbsolutePath() + " (" + e.getMessage() + ")");
+            failedFiles.add(sourceFile.getAbsolutePath() + " (" + describeFailure(e) + ")");
+        }
+
+        private String describeFailure(Exception e) {
+            StringBuilder message = new StringBuilder(e.getClass().getSimpleName());
+            if (e.getMessage() != null && !e.getMessage().isBlank()) {
+                message.append(": ").append(e.getMessage());
+            }
+            Throwable cause = e.getCause();
+            if (cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()) {
+                message.append("; cause: ").append(cause.getMessage());
+            }
+            return message.toString();
         }
 
         private void handleCompression(File f1, File desFile) throws IOException {
@@ -469,7 +481,7 @@ public class TransferTask extends Task<Integer> {
             return bytes + " B";
         }
         double value = bytes;
-        String[] units = {"KB", "MB", "GB", "TB", "PB"};
+        String[] units = { "KB", "MB", "GB", "TB", "PB" };
         int unitIndex = -1;
         while (value >= 1024 && unitIndex < units.length - 1) {
             value /= 1024;
